@@ -4,11 +4,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
 	"os"
 	"os/exec"
+	"strings"
 
 	"golang.org/x/tools/go/loader"
 
@@ -80,7 +82,10 @@ func reduce(funcName string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		f.Close()
+		os.Remove(testFile)
+	}()
 	// Check that it compiles and the func returns true, meaning
 	// that it's still reproducing the issue.
 	if err := writeTest(f, pkg.Name(), funcName); err != nil {
@@ -95,10 +100,18 @@ func reduce(funcName string) error {
 	if err := runTest(); err != nil {
 		return err
 	}
-	os.Remove(testFile)
 	return nil
 }
 
 func runTest() error {
-	return exec.Command("go", "test", "-run", "^"+testName+"$").Run()
+	cmd := exec.Command("go", "test", "-run", "^"+testName+"$")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+	if strings.HasPrefix(err.Error(), "exit status") {
+		s := strings.TrimSpace(string(out))
+		return errors.New(s)
+	}
+	return err
 }
