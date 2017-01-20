@@ -28,12 +28,17 @@ func main() {
 	}
 }
 
+const (
+	testFile = "reduce_test.go"
+	testName = "TestReduce"
+)
+
 var testTmpl = template.Must(template.New("test").Parse(`` +
 	`package {{ .Pkg }}
 
 import "testing"
 
-func TestReduce(t *testing.T) {
+func {{ .TestName }}(t *testing.T) {
 	if {{ .Expr }}() {
 		t.Fail()
 	}
@@ -48,10 +53,11 @@ func writeTest(f *os.File, pkgName, expr string) error {
 		return err
 	}
 	return testTmpl.Execute(f, struct {
-		Pkg, Expr string
+		Pkg, TestName, Expr string
 	}{
-		Pkg:  pkgName,
-		Expr: expr,
+		Pkg:      pkgName,
+		TestName: testName,
+		Expr:     expr,
 	})
 }
 
@@ -70,10 +76,13 @@ func reduce(funcName string) error {
 		return fmt.Errorf("expected 1 package, got %d", len(pkgInfos))
 	}
 	pkg := pkgInfos[0].Pkg
-	f, err := os.Create("reduce_test.go")
+	f, err := os.Create(testFile)
 	if err != nil {
 		return err
 	}
+	defer f.Close()
+	// Check that it compiles and the func returns true, meaning
+	// that it's still reproducing the issue.
 	if err := writeTest(f, pkg.Name(), funcName); err != nil {
 		return err
 	}
@@ -86,9 +95,10 @@ func reduce(funcName string) error {
 	if err := runTest(); err != nil {
 		return err
 	}
+	os.Remove(testFile)
 	return nil
 }
 
 func runTest() error {
-	return exec.Command("go", "test", "-run", "^TestReduce$").Run()
+	return exec.Command("go", "test", "-run", "^"+testName+"$").Run()
 }
