@@ -12,6 +12,7 @@ import (
 	"html/template"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
@@ -19,14 +20,16 @@ import (
 	"github.com/kisielk/gotool"
 )
 
+var matchStr = flag.String("match", "", "")
+
 func main() {
 	flag.Parse()
 	args := flag.Args()
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "Func name missing: goreduce funcName")
+		fmt.Fprintln(os.Stderr, "func name missing: goreduce funcName")
 		os.Exit(1)
 	}
-	if err := reduce(args[0]); err != nil {
+	if err := reduce(args[0], *matchStr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -43,9 +46,7 @@ var testTmpl = template.Must(template.New("test").Parse(`` +
 import "testing"
 
 func {{ .TestName }}(t *testing.T) {
-	if {{ .Expr }}() {
-		t.Fail()
-	}
+	{{ .Func }}()
 }
 `))
 
@@ -57,20 +58,27 @@ func emptyFile(f *os.File) error {
 	return err
 }
 
-func writeTest(f *os.File, pkgName, expr string) error {
+func writeTest(f *os.File, pkgName, funcName string) error {
 	if err := emptyFile(f); err != nil {
 		return err
 	}
 	return testTmpl.Execute(f, struct {
-		Pkg, TestName, Expr string
+		Pkg, TestName, Func string
 	}{
 		Pkg:      pkgName,
 		TestName: testName,
-		Expr:     expr,
+		Func:     funcName,
 	})
 }
 
-func reduce(funcName string) error {
+func reduce(funcName, matchStr string) error {
+	if matchStr == "" {
+		return fmt.Errorf("match regexp cannot be empty")
+	}
+	matchRe, err := regexp.Compile(matchStr)
+	if err != nil {
+		return err
+	}
 	paths := gotool.ImportPaths([]string{"."})
 	conf := loader.Config{}
 	if _, err := conf.FromArgs(paths, false); err != nil {
@@ -102,13 +110,7 @@ func reduce(funcName string) error {
 	if err := writeTest(tf, pkg.Name(), funcName); err != nil {
 		return err
 	}
-	if err := runTest(); err == nil {
-		return fmt.Errorf("expected test to fail")
-	}
-	if err := writeTest(tf, pkg.Name(), "!"+funcName); err != nil {
-		return err
-	}
-	if err := runTest(); err != nil {
+	if err := matchError(matchRe, runTest()); err != nil {
 		return err
 	}
 	file, fd := findFunc(pkgInfo.Files, funcName)
@@ -127,7 +129,7 @@ func reduce(funcName string) error {
 		if err := printer.Fprint(f, conf.Fset, file); err != nil {
 			return err
 		}
-		if err := runTest(); err == nil {
+		if err := matchError(matchRe, runTest()); err == nil {
 			// Reduction worked, exit
 			return nil
 		}
@@ -135,6 +137,16 @@ func reduce(funcName string) error {
 	// Nothing worked, return to original state
 	fd.Body = block
 	printer.Fprint(f, conf.Fset, file)
+	return nil
+}
+
+func matchError(matchRe *regexp.Regexp, err error) error {
+	if err == nil {
+		return fmt.Errorf("expected an error to occur")
+	}
+	if s := err.Error(); !matchRe.MatchString(s) {
+		return fmt.Errorf("error does not match:\n%s", s)
+	}
 	return nil
 }
 

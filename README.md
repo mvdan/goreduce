@@ -1,6 +1,7 @@
 # goreduce
 
-Reduce a function to its simplest form as long as it returns true.
+Reduce a function to its simplest form as long as it produces a compiler
+error or any output (such as a panic) matching an expression.
 
 Still a work in progress and barely useful.
 
@@ -8,19 +9,19 @@ Still a work in progress and barely useful.
 
 ```
 func Reduce() bool {
-	var a int
+	a := []int{1, 2, 3}
 	if true {
-		a = 3
+		a = append(a, 4)
 	}
-	return a >= 0
+	println(a[10])
 }
 ```
 
-	$ goreduce Reduce
+	$ goreduce -match 'index out of range' Reduce
 
 ```
 func Reduce() bool {
-	var a int
-	return a >= 0
+	a := []int{1, 2, 3}
+	println(a[10])
 }
 ```
