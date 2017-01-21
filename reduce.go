@@ -7,6 +7,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/printer"
 	"html/template"
 	"os"
 	"os/exec"
@@ -47,11 +49,16 @@ func {{ .TestName }}(t *testing.T) {
 }
 `))
 
-func writeTest(f *os.File, pkgName, expr string) error {
+func emptyFile(f *os.File) error {
 	if err := f.Truncate(0); err != nil {
 		return err
 	}
-	if _, err := f.Seek(0, 0); err != nil {
+	_, err := f.Seek(0, 0)
+	return err
+}
+
+func writeTest(f *os.File, pkgName, expr string) error {
+	if err := emptyFile(f); err != nil {
 		return err
 	}
 	return testTmpl.Execute(f, struct {
@@ -77,30 +84,83 @@ func reduce(funcName string) error {
 	if len(pkgInfos) != 1 {
 		return fmt.Errorf("expected 1 package, got %d", len(pkgInfos))
 	}
-	pkg := pkgInfos[0].Pkg
-	f, err := os.Create(testFile)
+	pkgInfo := pkgInfos[0]
+	pkg := pkgInfo.Pkg
+	if pkg.Scope().Lookup(funcName) == nil {
+		return fmt.Errorf("top-level func %s does not exist", funcName)
+	}
+	tf, err := os.Create(testFile)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		f.Close()
+		tf.Close()
 		os.Remove(testFile)
 	}()
 	// Check that it compiles and the func returns true, meaning
 	// that it's still reproducing the issue.
-	if err := writeTest(f, pkg.Name(), funcName); err != nil {
+	if err := writeTest(tf, pkg.Name(), funcName); err != nil {
 		return err
 	}
 	if err := runTest(); err == nil {
 		return fmt.Errorf("expected test to fail")
 	}
-	if err := writeTest(f, pkg.Name(), "!"+funcName); err != nil {
+	if err := writeTest(tf, pkg.Name(), "!"+funcName); err != nil {
 		return err
 	}
 	if err := runTest(); err != nil {
 		return err
 	}
+	file, fd := findFunc(pkgInfo.Files, funcName)
+	fname := conf.Fset.Position(file.Pos()).Filename
+	f, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	block := fd.Body
+	for _, b := range removeStmt(block) {
+		fd.Body = b
+		if err := emptyFile(f); err != nil {
+			return err
+		}
+		if err := printer.Fprint(f, conf.Fset, file); err != nil {
+			return err
+		}
+		if err := runTest(); err != nil {
+			fmt.Println(err)
+			continue
+		}
+		return nil
+	}
+	fd.Body = block
+	printer.Fprint(f, conf.Fset, file)
 	return nil
+}
+
+func removeStmt(orig *ast.BlockStmt) []*ast.BlockStmt {
+	bs := make([]*ast.BlockStmt, len(orig.List))
+	for i := range orig.List {
+		b := &ast.BlockStmt{}
+		*b = *orig
+		b.List = make([]ast.Stmt, len(orig.List)-1)
+		copy(b.List, orig.List[:i])
+		copy(b.List[i:], orig.List[i+1:])
+		bs[i] = b
+	}
+	return bs
+}
+
+func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			fd, ok := decl.(*ast.FuncDecl)
+			if ok && fd.Name.Name == name {
+				return file, fd
+			}
+		}
+	}
+	return nil, nil
 }
 
 func runTest() error {
