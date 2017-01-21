@@ -75,16 +75,16 @@ func reduce(funcName, matchStr string) error {
 	if matchStr == "" {
 		return fmt.Errorf("match regexp cannot be empty")
 	}
-	matchRe, err := regexp.Compile(matchStr)
-	if err != nil {
+	r := &reducer{}
+	var err error
+	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
 	paths := gotool.ImportPaths([]string{"."})
-	conf := loader.Config{}
-	if _, err := conf.FromArgs(paths, false); err != nil {
+	if _, err := r.FromArgs(paths, false); err != nil {
 		return err
 	}
-	prog, err := conf.Load()
+	prog, err := r.Load()
 	if err != nil {
 		return err
 	}
@@ -105,31 +105,36 @@ func reduce(funcName, matchStr string) error {
 		tf.Close()
 		os.Remove(testFile)
 	}()
-	// Check that it compiles and the func returns true, meaning
-	// that it's still reproducing the issue.
+	// Check that it compiles and the output matches before we apply
+	// any changes
 	if err := writeTest(tf, pkg.Name(), funcName); err != nil {
 		return err
 	}
-	if err := matchError(matchRe, runTest()); err != nil {
+	if err := r.checkTest(); err != nil {
 		return err
 	}
-	file, fd := findFunc(pkgInfo.Files, funcName)
-	fname := conf.Fset.Position(file.Pos()).Filename
-	f, err := os.Create(fname)
-	if err != nil {
+	r.file, r.funcDecl = findFunc(pkgInfo.Files, funcName)
+	fname := r.Fset.Position(r.file.Pos()).Filename
+	if r.srcFile, err = os.Create(fname); err != nil {
 		return err
 	}
-	defer f.Close()
+	defer r.srcFile.Close()
 	for {
-		err := reduceStep(conf, matchRe, f, file, fd)
-		if err == errNoChange {
+		if err := r.step(); err == errNoChange {
 			break // we're done
-		}
-		if err != nil {
+		} else if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+type reducer struct {
+	loader.Config
+	matchRe  *regexp.Regexp
+	file     *ast.File
+	funcDecl *ast.FuncDecl
+	srcFile  *os.File
 }
 
 func matchError(matchRe *regexp.Regexp, err error) error {
@@ -142,29 +147,33 @@ func matchError(matchRe *regexp.Regexp, err error) error {
 	return nil
 }
 
+func (r *reducer) checkTest() error {
+	return matchError(r.matchRe, runTest())
+}
+
 var errNoChange = fmt.Errorf("no reduction to apply")
 
-func reduceStep(conf loader.Config, matchRe *regexp.Regexp, f *os.File, file *ast.File, fd *ast.FuncDecl) error {
-	block := fd.Body
+func (r *reducer) step() error {
+	block := r.funcDecl.Body
 	for _, b := range removeStmt(block) {
-		fd.Body = b
-		if err := emptyFile(f); err != nil {
+		r.funcDecl.Body = b
+		if err := emptyFile(r.srcFile); err != nil {
 			return err
 		}
-		if err := printer.Fprint(f, conf.Fset, file); err != nil {
+		if err := printer.Fprint(r.srcFile, r.Fset, r.file); err != nil {
 			return err
 		}
-		if err := matchError(matchRe, runTest()); err == nil {
+		if err := r.checkTest(); err == nil {
 			// Reduction worked
 			return nil
 		}
 	}
 	// Nothing worked, return to original state
-	fd.Body = block
-	if err := emptyFile(f); err != nil {
+	r.funcDecl.Body = block
+	if err := emptyFile(r.srcFile); err != nil {
 		return err
 	}
-	printer.Fprint(f, conf.Fset, file)
+	printer.Fprint(r.srcFile, r.Fset, r.file)
 	return errNoChange
 }
 
@@ -183,9 +192,9 @@ func removeStmt(orig *ast.BlockStmt) []*ast.BlockStmt {
 func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 	for _, file := range files {
 		for _, decl := range file.Decls {
-			fd, ok := decl.(*ast.FuncDecl)
-			if ok && fd.Name.Name == name {
-				return file, fd
+			funcDecl, ok := decl.(*ast.FuncDecl)
+			if ok && funcDecl.Name.Name == name {
+				return file, funcDecl
 			}
 		}
 	}
