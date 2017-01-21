@@ -127,12 +127,12 @@ func reduce(funcName string) error {
 		if err := printer.Fprint(f, conf.Fset, file); err != nil {
 			return err
 		}
-		if err := runTest(); err != nil {
-			fmt.Println(err)
-			continue
+		if err := runTest(); err == nil {
+			// Reduction worked, exit
+			return nil
 		}
-		return nil
 	}
+	// Nothing worked, return to original state
 	fd.Body = block
 	printer.Fprint(f, conf.Fset, file)
 	return nil
@@ -142,11 +142,10 @@ func removeStmt(orig *ast.BlockStmt) []*ast.BlockStmt {
 	bs := make([]*ast.BlockStmt, len(orig.List))
 	for i := range orig.List {
 		b := &ast.BlockStmt{}
-		*b = *orig
+		bs[i], *b = b, *orig
 		b.List = make([]ast.Stmt, len(orig.List)-1)
 		copy(b.List, orig.List[:i])
 		copy(b.List[i:], orig.List[i+1:])
-		bs[i] = b
 	}
 	return bs
 }
@@ -170,8 +169,7 @@ func runTest() error {
 		return nil
 	}
 	if strings.HasPrefix(err.Error(), "exit status") {
-		s := strings.TrimSpace(string(out))
-		return errors.New(s)
+		return errors.New(strings.TrimSpace(string(out)))
 	}
 	return err
 }
