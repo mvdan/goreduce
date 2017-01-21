@@ -120,23 +120,15 @@ func reduce(funcName, matchStr string) error {
 		return err
 	}
 	defer f.Close()
-	block := fd.Body
-	for _, b := range removeStmt(block) {
-		fd.Body = b
-		if err := emptyFile(f); err != nil {
-			return err
+	for {
+		err := reduceStep(conf, matchRe, f, file, fd)
+		if err == errNoChange {
+			break // we're done
 		}
-		if err := printer.Fprint(f, conf.Fset, file); err != nil {
+		if err != nil {
 			return err
-		}
-		if err := matchError(matchRe, runTest()); err == nil {
-			// Reduction worked, exit
-			return nil
 		}
 	}
-	// Nothing worked, return to original state
-	fd.Body = block
-	printer.Fprint(f, conf.Fset, file)
 	return nil
 }
 
@@ -148,6 +140,32 @@ func matchError(matchRe *regexp.Regexp, err error) error {
 		return fmt.Errorf("error does not match:\n%s", s)
 	}
 	return nil
+}
+
+var errNoChange = fmt.Errorf("no reduction to apply")
+
+func reduceStep(conf loader.Config, matchRe *regexp.Regexp, f *os.File, file *ast.File, fd *ast.FuncDecl) error {
+	block := fd.Body
+	for _, b := range removeStmt(block) {
+		fd.Body = b
+		if err := emptyFile(f); err != nil {
+			return err
+		}
+		if err := printer.Fprint(f, conf.Fset, file); err != nil {
+			return err
+		}
+		if err := matchError(matchRe, runTest()); err == nil {
+			// Reduction worked
+			return nil
+		}
+	}
+	// Nothing worked, return to original state
+	fd.Body = block
+	if err := emptyFile(f); err != nil {
+		return err
+	}
+	printer.Fprint(f, conf.Fset, file)
+	return errNoChange
 }
 
 func removeStmt(orig *ast.BlockStmt) []*ast.BlockStmt {
