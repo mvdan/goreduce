@@ -43,19 +43,6 @@ func emptyFile(f *os.File) error {
 	return err
 }
 
-func writeTest(f *os.File, pkgName, funcName string) error {
-	if err := emptyFile(f); err != nil {
-		return err
-	}
-	return testTmpl.Execute(f, struct {
-		Pkg, TestName, Func string
-	}{
-		Pkg:      pkgName,
-		TestName: testName,
-		Func:     funcName,
-	})
-}
-
 func reduce(impPath, funcName, matchStr string) error {
 	r := &reducer{impPath: impPath}
 	var err error
@@ -92,7 +79,13 @@ func reduce(impPath, funcName, matchStr string) error {
 	}()
 	// Check that it compiles and the output matches before we apply
 	// any changes
-	if err := writeTest(tf, pkg.Name(), funcName); err != nil {
+	if err := testTmpl.Execute(tf, struct {
+		Pkg, TestName, Func string
+	}{
+		Pkg:      pkg.Name(),
+		TestName: testName,
+		Func:     funcName,
+	}); err != nil {
 		return err
 	}
 	if err := r.checkTest(); err != nil {
@@ -140,14 +133,18 @@ func (r *reducer) checkTest() error {
 
 var errNoChange = fmt.Errorf("no reduction to apply")
 
+func (r *reducer) writeSource() error {
+	if err := emptyFile(r.srcFile); err != nil {
+		return err
+	}
+	return printer.Fprint(r.srcFile, r.Fset, r.file)
+}
+
 func (r *reducer) step() error {
 	block := r.funcDecl.Body
 	for _, b := range allChanges(block) {
 		r.funcDecl.Body = b
-		if err := emptyFile(r.srcFile); err != nil {
-			return err
-		}
-		if err := printer.Fprint(r.srcFile, r.Fset, r.file); err != nil {
+		if err := r.writeSource(); err != nil {
 			return err
 		}
 		if err := r.checkTest(); err == nil {
@@ -157,10 +154,9 @@ func (r *reducer) step() error {
 	}
 	// Nothing worked, return to original state
 	r.funcDecl.Body = block
-	if err := emptyFile(r.srcFile); err != nil {
+	if err := r.writeSource(); err != nil {
 		return err
 	}
-	printer.Fprint(r.srcFile, r.Fset, r.file)
 	return errNoChange
 }
 
