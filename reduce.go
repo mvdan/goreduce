@@ -5,7 +5,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -19,21 +18,6 @@ import (
 
 	"github.com/kisielk/gotool"
 )
-
-var matchStr = flag.String("match", "", "")
-
-func main() {
-	flag.Parse()
-	args := flag.Args()
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "func name missing: goreduce funcName")
-		os.Exit(1)
-	}
-	if err := reduce(args[0], *matchStr); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-}
 
 const (
 	testFile = "reduce_test.go"
@@ -92,8 +76,8 @@ func reduce(funcName, matchStr string) error {
 	if len(pkgInfos) != 1 {
 		return fmt.Errorf("expected 1 package, got %d", len(pkgInfos))
 	}
-	pkgInfo := pkgInfos[0]
-	pkg := pkgInfo.Pkg
+	r.PackageInfo = pkgInfos[0]
+	pkg := r.PackageInfo.Pkg
 	if pkg.Scope().Lookup(funcName) == nil {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
@@ -113,7 +97,7 @@ func reduce(funcName, matchStr string) error {
 	if err := r.checkTest(); err != nil {
 		return err
 	}
-	r.file, r.funcDecl = findFunc(pkgInfo.Files, funcName)
+	r.file, r.funcDecl = findFunc(r.PackageInfo.Files, funcName)
 	fname := r.Fset.Position(r.file.Pos()).Filename
 	if r.srcFile, err = os.Create(fname); err != nil {
 		return err
@@ -131,6 +115,7 @@ func reduce(funcName, matchStr string) error {
 
 type reducer struct {
 	loader.Config
+	*loader.PackageInfo
 	matchRe  *regexp.Regexp
 	file     *ast.File
 	funcDecl *ast.FuncDecl
