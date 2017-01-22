@@ -55,10 +55,7 @@ func writeTest(f *os.File, pkgName, funcName string) error {
 	})
 }
 
-func reduce(funcName, matchStr string) error {
-	if matchStr == "" {
-		return fmt.Errorf("match regexp cannot be empty")
-	}
+func reduce(impPath, funcName, matchStr string) error {
 	r := &reducer{}
 	var err error
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
@@ -175,7 +172,7 @@ type changeFunc func(*ast.BlockStmt) []*ast.BlockStmt
 func allChanges(orig *ast.BlockStmt) (bs []*ast.BlockStmt) {
 	for _, f := range []changeFunc{
 		removeStmt,
-	}{
+	} {
 		bs = append(bs, f(orig)...)
 	}
 	return

@@ -9,16 +9,25 @@ import (
 	"os"
 )
 
-var matchStr = flag.String("match", "", "")
+var matchStr = flag.String("match", "", "regexp to match the output")
+
+func init() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: goreduce -match=re pkg func\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr,
+			"\nExample: goreduce -match='nil pointer' . Crasher\n")
+	}
+	flag.Parse()
+}
 
 func main() {
-	flag.Parse()
 	args := flag.Args()
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "func name missing: goreduce funcName")
-		os.Exit(1)
+	if len(args) != 2 || *matchStr == "" {
+		flag.Usage()
+		os.Exit(2)
 	}
-	if err := reduce(args[0], *matchStr); err != nil {
+	if err := reduce(args[0], args[1], *matchStr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
