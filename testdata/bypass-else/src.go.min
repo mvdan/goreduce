@@ -1,0 +1,11 @@
+package crasher
+
+func Crasher() {
+	a := []int{0}
+
+	{
+		a = nil
+	}
+
+	println(a[0])
+}

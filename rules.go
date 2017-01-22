@@ -29,6 +29,7 @@ func allChanges(orig *ast.BlockStmt) (bs []*ast.BlockStmt) {
 		// more aggressive changes first to try and speed it up
 		removeStmt,
 		bypassIf,
+		bypassElse,
 	} {
 		bs = append(bs, f(orig)...)
 	}
@@ -61,6 +62,23 @@ func bypassIf(orig *ast.BlockStmt) []*ast.BlockStmt {
 		b.List = make([]ast.Stmt, len(orig.List))
 		copy(b.List, orig.List)
 		b.List[i] = ifStmt.Body
+	}
+	return bs
+}
+
+// if xs { ys } else z -> z
+func bypassElse(orig *ast.BlockStmt) []*ast.BlockStmt {
+	bs := []*ast.BlockStmt{}
+	for i, stmt := range orig.List {
+		ifStmt, ok := stmt.(*ast.IfStmt)
+		if !ok {
+			continue
+		}
+		b := &ast.BlockStmt{}
+		bs, *b = append(bs, b), *orig
+		b.List = make([]ast.Stmt, len(orig.List))
+		copy(b.List, orig.List)
+		b.List[i] = ifStmt.Else
 	}
 	return bs
 }
