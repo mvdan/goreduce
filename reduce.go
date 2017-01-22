@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	testFile = "reduce_test.go"
+	testFile = "goreduce_test.go"
 	testName = "TestReduce"
 )
 
@@ -56,12 +57,12 @@ func writeTest(f *os.File, pkgName, funcName string) error {
 }
 
 func reduce(impPath, funcName, matchStr string) error {
-	r := &reducer{}
+	r := &reducer{impPath: impPath}
 	var err error
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
-	paths := gotool.ImportPaths([]string{"."})
+	paths := gotool.ImportPaths([]string{impPath})
 	if _, err := r.FromArgs(paths, false); err != nil {
 		return err
 	}
@@ -78,13 +79,16 @@ func reduce(impPath, funcName, matchStr string) error {
 	if pkg.Scope().Lookup(funcName) == nil {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
-	tf, err := os.Create(testFile)
+	r.file, r.funcDecl = findFunc(r.PackageInfo.Files, funcName)
+	fname := r.Fset.Position(r.file.Pos()).Filename
+	testFilePath := filepath.Join(filepath.Dir(fname), testFile)
+	tf, err := os.Create(testFilePath)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		tf.Close()
-		os.Remove(testFile)
+		os.Remove(testFilePath)
 	}()
 	// Check that it compiles and the output matches before we apply
 	// any changes
@@ -94,8 +98,6 @@ func reduce(impPath, funcName, matchStr string) error {
 	if err := r.checkTest(); err != nil {
 		return err
 	}
-	r.file, r.funcDecl = findFunc(r.PackageInfo.Files, funcName)
-	fname := r.Fset.Position(r.file.Pos()).Filename
 	if r.srcFile, err = os.Create(fname); err != nil {
 		return err
 	}
@@ -114,6 +116,8 @@ func reduce(impPath, funcName, matchStr string) error {
 type reducer struct {
 	loader.Config
 	*loader.PackageInfo
+
+	impPath  string
 	matchRe  *regexp.Regexp
 	file     *ast.File
 	funcDecl *ast.FuncDecl
@@ -131,7 +135,7 @@ func matchError(matchRe *regexp.Regexp, err error) error {
 }
 
 func (r *reducer) checkTest() error {
-	return matchError(r.matchRe, runTest())
+	return matchError(r.matchRe, runTest(r.impPath))
 }
 
 var errNoChange = fmt.Errorf("no reduction to apply")
@@ -172,8 +176,8 @@ func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 	return nil, nil
 }
 
-func runTest() error {
-	cmd := exec.Command("go", "test", "-run", "^"+testName+"$")
+func runTest(impPath string) error {
+	cmd := exec.Command("go", "test", impPath, "-run", "^"+testName+"$")
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return nil

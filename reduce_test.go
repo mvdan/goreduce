@@ -5,7 +5,6 @@ package main
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,43 +13,37 @@ import (
 var dirsGlob = filepath.Join("testdata", "*")
 
 func TestReductions(t *testing.T) {
-	dirs, err := filepath.Glob(dirsGlob)
+	paths, err := filepath.Glob(dirsGlob)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, dir := range dirs {
-		name := filepath.Base(dir)
-		t.Run(name, testReduction(dir))
+	for _, path := range paths {
+		name := filepath.Base(path)
+		t.Run(name, testReduction(name))
 	}
 }
 
-func readFile(t *testing.T, path string) string {
-	bs, err := ioutil.ReadFile(path)
+func readFile(t *testing.T, dir, path string) string {
+	bs, err := ioutil.ReadFile(filepath.Join(dir, path))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return string(bs)
 }
 
-func testReduction(dir string) func(*testing.T) {
+func testReduction(name string) func(*testing.T) {
 	return func(t *testing.T) {
-		// TODO: don't chdir to allow parallel test execution
-		if err := os.Chdir(dir); err != nil {
+		t.Parallel()
+		dir := filepath.Join("testdata", name)
+		orig := []byte(readFile(t, dir, "src.go"))
+		defer ioutil.WriteFile(filepath.Join(dir, "src.go"), orig, 0644)
+		want := readFile(t, dir, "src.go.min")
+		match := strings.TrimRight(readFile(t, dir, "match"), "\n")
+		impPath := "./testdata/" + name
+		if err := reduce(impPath, "Crasher", match); err != nil {
 			t.Fatal(err)
 		}
-		defer func() {
-			if err := os.Chdir("../.."); err != nil {
-				t.Fatal(err)
-			}
-		}()
-		orig := []byte(readFile(t, "src.go"))
-		defer ioutil.WriteFile("src.go", orig, 0644)
-		want := readFile(t, "src.go.min")
-		match := strings.TrimRight(readFile(t, "match"), "\n")
-		if err := reduce(".", "Crasher", match); err != nil {
-			t.Fatal(err)
-		}
-		got := readFile(t, "src.go")
+		got := readFile(t, dir, "src.go")
 		if want != got {
 			t.Fatalf("unexpected output!\nwant:\n%s\ngot:\n%s\n",
 				want, got)
