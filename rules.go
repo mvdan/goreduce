@@ -71,7 +71,7 @@ func bypassElse(orig *ast.BlockStmt) []*ast.BlockStmt {
 	bs := []*ast.BlockStmt{}
 	for i, stmt := range orig.List {
 		ifStmt, ok := stmt.(*ast.IfStmt)
-		if !ok {
+		if !ok || ifStmt.Else == nil {
 			continue
 		}
 		b := &ast.BlockStmt{}
