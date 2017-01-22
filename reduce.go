@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/printer"
+	"go/types"
 	"html/template"
 	"os"
 	"os/exec"
@@ -141,9 +142,16 @@ func (r *reducer) writeSource() error {
 }
 
 func (r *reducer) step() error {
+	conf := types.Config{}
 	block := r.funcDecl.Body
 	for _, b := range allChanges(block) {
 		r.funcDecl.Body = b
+		// go/types catches most compile errors before writing
+		// to disk and running the go tool. Since quite a lot of
+		// changes are nonsensical, this is often a big win.
+		if _, err := conf.Check(r.impPath, r.Fset, r.Files, nil); err != nil {
+			continue
+		}
 		if err := r.writeSource(); err != nil {
 			return err
 		}

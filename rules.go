@@ -10,10 +10,9 @@ import "go/ast"
 
 // TODO: recurse into nested blocks
 
-// TODO: go/types could likely catch compile errors that we produced
-// without having to call the go tool. Study whether inferring that
-// ourselves for common cases (e.g. removing var declarations) would
-// save time.
+// TODO: we use go/types to catch compile errors before writing to disk
+// and running the go tool. Study whether it's worth anticipating some
+// of the common cases (e.g. removing var declarations) to save time.
 
 // TODO: is this powerful and versatile enough?
 // Some ideas:
