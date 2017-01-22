@@ -141,7 +141,7 @@ var errNoChange = fmt.Errorf("no reduction to apply")
 
 func (r *reducer) step() error {
 	block := r.funcDecl.Body
-	for _, b := range removeStmt(block) {
+	for _, b := range allChanges(block) {
 		r.funcDecl.Body = b
 		if err := emptyFile(r.srcFile); err != nil {
 			return err
@@ -161,6 +161,24 @@ func (r *reducer) step() error {
 	}
 	printer.Fprint(r.srcFile, r.Fset, r.file)
 	return errNoChange
+}
+
+// TODO: is this powerful and versatile enough?
+// Some ideas:
+// * It doesn't have the ast for the whole package/file
+// * go/types info could be useful
+// * Work on x/tools/go/ssa, even?
+type changeFunc func(*ast.BlockStmt) []*ast.BlockStmt
+
+// TODO: don't generate new ASTs all at once, use something else like a
+// chan
+func allChanges(orig *ast.BlockStmt) (bs []*ast.BlockStmt) {
+	for _, f := range []changeFunc{
+		removeStmt,
+	}{
+		bs = append(bs, f(orig)...)
+	}
+	return
 }
 
 func removeStmt(orig *ast.BlockStmt) []*ast.BlockStmt {
