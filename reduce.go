@@ -160,36 +160,6 @@ func (r *reducer) step() error {
 	return errNoChange
 }
 
-// TODO: is this powerful and versatile enough?
-// Some ideas:
-// * It doesn't have the ast for the whole package/file
-// * go/types info could be useful
-// * Work on x/tools/go/ssa, even?
-type changeFunc func(*ast.BlockStmt) []*ast.BlockStmt
-
-// TODO: don't generate new ASTs all at once, use something else like a
-// chan
-func allChanges(orig *ast.BlockStmt) (bs []*ast.BlockStmt) {
-	for _, f := range []changeFunc{
-		removeStmt,
-	} {
-		bs = append(bs, f(orig)...)
-	}
-	return
-}
-
-func removeStmt(orig *ast.BlockStmt) []*ast.BlockStmt {
-	bs := make([]*ast.BlockStmt, len(orig.List))
-	for i := range orig.List {
-		b := &ast.BlockStmt{}
-		bs[i], *b = b, *orig
-		b.List = make([]ast.Stmt, len(orig.List)-1)
-		copy(b.List, orig.List[:i])
-		copy(b.List[i:], orig.List[i+1:])
-	}
-	return bs
-}
-
 func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 	for _, file := range files {
 		for _, decl := range file.Decls {

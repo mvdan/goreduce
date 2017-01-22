@@ -38,6 +38,11 @@ func testReduction(dir string) func(*testing.T) {
 		if err := os.Chdir(dir); err != nil {
 			t.Fatal(err)
 		}
+		defer func() {
+			if err := os.Chdir("../.."); err != nil {
+				t.Fatal(err)
+			}
+		}()
 		orig := []byte(readFile(t, "src.go"))
 		defer ioutil.WriteFile("src.go", orig, 0644)
 		want := readFile(t, "src.go.min")
