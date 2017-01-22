@@ -102,15 +102,16 @@ func reduce(funcName, matchStr string) error {
 	if r.srcFile, err = os.Create(fname); err != nil {
 		return err
 	}
-	defer r.srcFile.Close()
-	for {
-		if err := r.step(); err == errNoChange {
+	for err == nil {
+		if err = r.step(); err == errNoChange {
+			err = nil
 			break // we're done
-		} else if err != nil {
-			return err
 		}
 	}
-	return nil
+	if err2 := r.srcFile.Close(); err == nil && err2 != nil {
+		return err2
+	}
+	return err
 }
 
 type reducer struct {
