@@ -1,5 +1,7 @@
 # goreduce
 
+[![Build Status](https://travis-ci.org/mvdan/goreduce.svg?branch=master)](https://travis-ci.org/mvdan/goreduce)
+
 Reduce a function to its simplest form as long as it produces a compiler
 error or any output (such as a panic) matching a regular expression.
 
