@@ -18,17 +18,8 @@ type changeFunc func(*ast.BlockStmt) []*ast.BlockStmt
 
 func (r *reducer) changes(orig *ast.BlockStmt) {
 	r.didChange = false
-	ast.Walk(r, orig)
+	r.walk(orig)
 	return
-}
-
-func (r *reducer) Visit(node ast.Node) ast.Visitor {
-	switch x := node.(type) {
-	case *ast.BlockStmt:
-		r.removeStmt(x)
-		r.bypassIf(x)
-	}
-	return r
 }
 
 // xs; y; zs -> xs; zs
