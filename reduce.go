@@ -145,6 +145,9 @@ func (r *reducer) writeSource() error {
 }
 
 func (r *reducer) okChange() bool {
+	if r.didChange {
+		return false
+	}
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
