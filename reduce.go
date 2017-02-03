@@ -118,6 +118,7 @@ type reducer struct {
 	srcFile  *os.File
 
 	didChange bool
+	curStmt   *ast.Stmt
 }
 
 func matchError(matchRe *regexp.Regexp, err error) error {

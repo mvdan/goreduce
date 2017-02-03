@@ -36,29 +36,19 @@ func (r *reducer) removeStmt(b *ast.BlockStmt) {
 	}
 }
 
+func (r *reducer) checkStmt(stmt ast.Stmt) result {
+	*r.curStmt = stmt
+	return r.check()
+}
+
 // if xs { ys } -> ys
 // if xs { ys } else z -> z
-func (r *reducer) bypassIf(b *ast.BlockStmt) {
-	orig := b.List
-	for i, stmt := range orig {
-		ifStmt, ok := stmt.(*ast.IfStmt)
-		if !ok {
-			continue
-		}
-		b.List = make([]ast.Stmt, len(orig))
-		copy(b.List, orig)
-		b.List[i] = ifStmt.Body
-		if r.check() == validChange {
-			return
-		}
-		if ifStmt.Else != nil {
-			b.List = make([]ast.Stmt, len(orig))
-			copy(b.List, orig)
-			b.List[i] = ifStmt.Else
-			if r.check() == validChange {
-				return
-			}
-		}
-		b.List = orig
+func (r *reducer) bypassIf(ifs *ast.IfStmt) {
+	if r.checkStmt(ifs.Body) == validChange {
+		return
 	}
+	if ifs.Else != nil && r.checkStmt(ifs.Else) == validChange {
+		return
+	}
+	*r.curStmt = ifs
 }

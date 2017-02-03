@@ -26,7 +26,8 @@ func (r *reducer) walkExprList(list []ast.Expr) {
 }
 
 func (r *reducer) walkStmtList(list []ast.Stmt) {
-	for _, x := range list {
+	for i, x := range list {
+		r.curStmt = &list[i]
 		r.walk(x)
 	}
 }
@@ -187,10 +188,10 @@ func (r *reducer) walk(node ast.Node) {
 
 	case *ast.BlockStmt:
 		r.removeStmt(x)
-		r.bypassIf(x)
 		r.walkStmtList(x.List)
 
 	case *ast.IfStmt:
+		r.bypassIf(x)
 		if x.Init != nil {
 			r.walk(x.Init)
 		}
