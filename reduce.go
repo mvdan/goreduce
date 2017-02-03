@@ -116,6 +116,8 @@ type reducer struct {
 	file     *ast.File
 	funcDecl *ast.FuncDecl
 	srcFile  *os.File
+
+	didChange bool
 }
 
 func matchError(matchRe *regexp.Regexp, err error) error {
@@ -141,27 +143,38 @@ func (r *reducer) writeSource() error {
 	return printer.Fprint(r.srcFile, r.Fset, r.file)
 }
 
-func (r *reducer) step() error {
+type result int
+
+const (
+	errChange result = iota
+	invalidChange
+	validChange
+)
+
+func (r *reducer) check() result {
+	// go/types catches most compile errors before writing
+	// to disk and running the go tool. Since quite a lot of
+	// changes are nonsensical, this is often a big win.
 	conf := types.Config{}
-	block := r.funcDecl.Body
-	for _, b := range allChanges(block) {
-		r.funcDecl.Body = b
-		// go/types catches most compile errors before writing
-		// to disk and running the go tool. Since quite a lot of
-		// changes are nonsensical, this is often a big win.
-		if _, err := conf.Check(r.impPath, r.Fset, r.Files, nil); err != nil {
-			continue
-		}
-		if err := r.writeSource(); err != nil {
-			return err
-		}
-		if err := r.checkTest(); err == nil {
-			// Reduction worked
-			return nil
-		}
+	if _, err := conf.Check(r.impPath, r.Fset, r.Files, nil); err != nil {
+		return errChange
 	}
-	// Nothing worked, return to original state
-	r.funcDecl.Body = block
+	if err := r.writeSource(); err != nil {
+		return errChange
+	}
+	if err := r.checkTest(); err == nil {
+		// Reduction worked
+		r.didChange = true
+		return validChange
+	}
+	return invalidChange
+}
+
+func (r *reducer) step() error {
+	r.changes(r.funcDecl.Body)
+	if r.didChange {
+		return nil
+	}
 	if err := r.writeSource(); err != nil {
 		return err
 	}

@@ -5,11 +5,6 @@ package main
 
 import "go/ast"
 
-// TODO: can we do better than every func iterating over the AST on its
-// own?
-
-// TODO: recurse into nested blocks
-
 // TODO: we use go/types to catch compile errors before writing to disk
 // and running the go tool. Study whether it's worth anticipating some
 // of the common cases (e.g. removing var declarations) to save time.
@@ -21,53 +16,58 @@ import "go/ast"
 // * Work on x/tools/go/ssa, even?
 type changeFunc func(*ast.BlockStmt) []*ast.BlockStmt
 
-// TODO: don't generate new ASTs all at once, use something else like a
-// chan
-func allChanges(orig *ast.BlockStmt) (bs []*ast.BlockStmt) {
-	for _, f := range []changeFunc{
-		// more aggressive changes first to try and speed it up
-		removeStmt,
-		bypassIf,
-	} {
-		bs = append(bs, f(orig)...)
-	}
+func (r *reducer) changes(orig *ast.BlockStmt) {
+	r.didChange = false
+	ast.Walk(r, orig)
 	return
 }
 
-// xs; y; zs -> xs; zs
-func removeStmt(orig *ast.BlockStmt) []*ast.BlockStmt {
-	bs := make([]*ast.BlockStmt, len(orig.List))
-	for i := range orig.List {
-		b := &ast.BlockStmt{}
-		bs[i], *b = b, *orig
-		b.List = make([]ast.Stmt, len(orig.List)-1)
-		copy(b.List, orig.List[:i])
-		copy(b.List[i:], orig.List[i+1:])
+func (r *reducer) Visit(node ast.Node) ast.Visitor {
+	switch x := node.(type) {
+	case *ast.BlockStmt:
+		r.removeStmt(x)
+		r.bypassIf(x)
 	}
-	return bs
+	return r
+}
+
+// xs; y; zs -> xs; zs
+func (r *reducer) removeStmt(b *ast.BlockStmt) {
+	orig := b.List
+	for i := range orig {
+		b.List = make([]ast.Stmt, len(orig)-1)
+		copy(b.List, orig[:i])
+		copy(b.List[i:], orig[i+1:])
+		if r.check() == validChange {
+			return
+		}
+		b.List = orig
+	}
 }
 
 // if xs { ys } -> ys
 // if xs { ys } else z -> z
-func bypassIf(orig *ast.BlockStmt) []*ast.BlockStmt {
-	bs := []*ast.BlockStmt{}
-	for i, stmt := range orig.List {
+func (r *reducer) bypassIf(b *ast.BlockStmt) {
+	orig := b.List
+	for i, stmt := range orig {
 		ifStmt, ok := stmt.(*ast.IfStmt)
 		if !ok {
 			continue
 		}
-		b := &ast.BlockStmt{}
-		bs, *b = append(bs, b), *orig
-		b.List = make([]ast.Stmt, len(orig.List))
-		copy(b.List, orig.List)
+		b.List = make([]ast.Stmt, len(orig))
+		copy(b.List, orig)
 		b.List[i] = ifStmt.Body
-		if ifStmt.Else != nil {
-			b := &ast.BlockStmt{}
-			bs, *b = append(bs, b), *orig
-			b.List = make([]ast.Stmt, len(orig.List))
-			copy(b.List, orig.List)
-			b.List[i] = ifStmt.Else
+		if r.check() == validChange {
+			return
 		}
+		if ifStmt.Else != nil {
+			b.List = make([]ast.Stmt, len(orig))
+			copy(b.List, orig)
+			b.List[i] = ifStmt.Else
+			if r.check() == validChange {
+				return
+			}
+		}
+		b.List = orig
 	}
-	return bs
 }
