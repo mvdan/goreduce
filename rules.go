@@ -26,6 +26,7 @@ func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 }
 
 func (r *reducer) bypassIf(ifs *ast.IfStmt) {
+	// RULE: bypass to if or else branches
 	if r.changeStmt(ifs.Body) {
 		return
 	}

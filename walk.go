@@ -27,6 +27,7 @@ func (r *reducer) walkExprList(list []ast.Expr) {
 
 func (r *reducer) walkStmtList(list *[]ast.Stmt) {
 	orig := *list
+	// RULE: remove each one of the statements
 	for i := range orig {
 		l := make([]ast.Stmt, len(orig)-1)
 		copy(l, orig[:i])
