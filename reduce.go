@@ -118,7 +118,7 @@ type reducer struct {
 	srcFile  *os.File
 
 	didChange bool
-	curStmt   *ast.Stmt
+	stmt      *ast.Stmt
 }
 
 func matchError(matchRe *regexp.Regexp, err error) error {
@@ -144,35 +144,28 @@ func (r *reducer) writeSource() error {
 	return printer.Fprint(r.srcFile, r.Fset, r.file)
 }
 
-type result int
-
-const (
-	errChange result = iota
-	invalidChange
-	validChange
-)
-
-func (r *reducer) check() result {
+func (r *reducer) okChange() bool {
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
 	conf := types.Config{}
 	if _, err := conf.Check(r.impPath, r.Fset, r.Files, nil); err != nil {
-		return errChange
+		return false
 	}
 	if err := r.writeSource(); err != nil {
-		return errChange
+		return false
 	}
-	if err := r.checkTest(); err == nil {
-		// Reduction worked
-		r.didChange = true
-		return validChange
+	if err := r.checkTest(); err != nil {
+		return false
 	}
-	return invalidChange
+	// Reduction worked
+	r.didChange = true
+	return true
 }
 
 func (r *reducer) step() error {
-	r.changes(r.funcDecl.Body)
+	r.didChange = false
+	r.walk(r.funcDecl.Body)
 	if r.didChange {
 		return nil
 	}

@@ -14,41 +14,22 @@ import "go/ast"
 // * It doesn't have the ast for the whole package/file
 // * go/types info could be useful
 // * Work on x/tools/go/ssa, even?
-type changeFunc func(*ast.BlockStmt) []*ast.BlockStmt
 
-func (r *reducer) changes(orig *ast.BlockStmt) {
-	r.didChange = false
-	r.walk(orig)
-	return
-}
-
-// xs; y; zs -> xs; zs
-func (r *reducer) removeStmt(b *ast.BlockStmt) {
-	orig := b.List
-	for i := range orig {
-		b.List = make([]ast.Stmt, len(orig)-1)
-		copy(b.List, orig[:i])
-		copy(b.List[i:], orig[i+1:])
-		if r.check() == validChange {
-			return
-		}
-		b.List = orig
+func (r *reducer) changeStmt(stmt ast.Stmt) bool {
+	orig := *r.stmt
+	*r.stmt = stmt
+	if r.okChange() {
+		return true
 	}
+	*r.stmt = orig
+	return false
 }
 
-func (r *reducer) checkStmt(stmt ast.Stmt) result {
-	*r.curStmt = stmt
-	return r.check()
-}
-
-// if xs { ys } -> ys
-// if xs { ys } else z -> z
 func (r *reducer) bypassIf(ifs *ast.IfStmt) {
-	if r.checkStmt(ifs.Body) == validChange {
+	if r.changeStmt(ifs.Body) {
 		return
 	}
-	if ifs.Else != nil && r.checkStmt(ifs.Else) == validChange {
+	if ifs.Else != nil && r.changeStmt(ifs.Else) {
 		return
 	}
-	*r.curStmt = ifs
 }

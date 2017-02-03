@@ -25,9 +25,20 @@ func (r *reducer) walkExprList(list []ast.Expr) {
 	}
 }
 
-func (r *reducer) walkStmtList(list []ast.Stmt) {
-	for i, x := range list {
-		r.curStmt = &list[i]
+func (r *reducer) walkStmtList(list *[]ast.Stmt) {
+	orig := *list
+	for i := range orig {
+		l := make([]ast.Stmt, len(orig)-1)
+		copy(l, orig[:i])
+		copy(l[i:], orig[i+1:])
+		*list = l
+		if r.okChange() {
+			return
+		}
+	}
+	*list = orig
+	for i, x := range orig {
+		r.stmt = &orig[i]
 		r.walk(x)
 	}
 }
@@ -187,8 +198,7 @@ func (r *reducer) walk(node ast.Node) {
 		}
 
 	case *ast.BlockStmt:
-		r.removeStmt(x)
-		r.walkStmtList(x.List)
+		r.walkStmtList(&x.List)
 
 	case *ast.IfStmt:
 		r.bypassIf(x)
@@ -203,7 +213,7 @@ func (r *reducer) walk(node ast.Node) {
 
 	case *ast.CaseClause:
 		r.walkExprList(x.List)
-		r.walkStmtList(x.Body)
+		r.walkStmtList(&x.Body)
 
 	case *ast.SwitchStmt:
 		if x.Init != nil {
@@ -225,7 +235,7 @@ func (r *reducer) walk(node ast.Node) {
 		if x.Comm != nil {
 			r.walk(x.Comm)
 		}
-		r.walkStmtList(x.Body)
+		r.walkStmtList(&x.Body)
 
 	case *ast.SelectStmt:
 		r.walk(x.Body)
