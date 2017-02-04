@@ -55,5 +55,9 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 		switch {
 		case okValue(`""`):
 		}
+	case token.INT:
+		switch {
+		case okValue(`0`):
+		}
 	}
 }

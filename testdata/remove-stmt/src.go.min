@@ -3,5 +3,5 @@ package crasher
 func Crasher() {
 	a := []int{}
 
-	println(a[10])
+	println(a[0])
 }

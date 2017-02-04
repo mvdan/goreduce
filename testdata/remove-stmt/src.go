@@ -6,5 +6,5 @@ func Crasher() {
 		a = append(a, 3)
 	}
 	a[1] = -2
-	println(a[10])
+	println(a[0])
 }
