@@ -60,3 +60,27 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 		}
 	}
 }
+
+// RULE: remove slice expression parts
+func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
+	for i, expr := range [...]*ast.Expr{
+		&sl.Max,
+		&sl.High,
+		&sl.Low,
+	} {
+		orig := *expr
+		if orig == nil {
+			continue
+		}
+		if i == 0 {
+			sl.Slice3 = false
+		}
+		if *expr = nil; r.okChange() {
+			return
+		}
+		if i == 0 {
+			sl.Slice3 = true
+		}
+		*expr = orig
+	}
+}

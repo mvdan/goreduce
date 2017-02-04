@@ -111,6 +111,7 @@ func (r *reducer) walk(node ast.Node) {
 		r.walk(x.Index)
 
 	case *ast.SliceExpr:
+		r.reduceSlice(x)
 		r.walk(x.X)
 		if x.Low != nil {
 			r.walk(x.Low)
