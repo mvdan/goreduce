@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/printer"
 	"go/types"
 	"html/template"
@@ -46,6 +47,7 @@ func emptyFile(f *os.File) error {
 
 func reduce(impPath, funcName, matchStr string) error {
 	r := &reducer{impPath: impPath}
+	r.typConf.Importer = importer.Default()
 	var err error
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
