@@ -36,5 +36,5 @@ func Crasher() {
 | Remove statement   | `a; b;`      | `a;`    |
 | Bypass to if/else  | `if a { b }` | `b`     |
 | Bypass defer       | `defer a`    | `a`     |
-| Simple lit values  | `123, "foo"` | `0, ""` |
+| Zero lit values    | `123, "foo"` | `0, ""` |
 | Remove slice parts | `a[1:2:3]`   | `a[1:]` |

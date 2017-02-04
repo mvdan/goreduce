@@ -28,11 +28,9 @@ func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 
 // RULE: bypass to if or else branches
 func (r *reducer) bypassIf(ifs *ast.IfStmt) {
-	if r.changeStmt(ifs.Body) {
-		return
-	}
-	if ifs.Else != nil && r.changeStmt(ifs.Else) {
-		return
+	switch {
+	case r.changeStmt(ifs.Body):
+	case ifs.Else != nil && r.changeStmt(ifs.Else):
 	}
 }
 
@@ -42,28 +40,22 @@ func (r *reducer) bypassDefer(df *ast.DeferStmt) {
 	r.changeStmt(es)
 }
 
-// RULE: reduce basic lits to simple values
+// RULE: reduce basic lits to zero values
 func (r *reducer) reduceLit(l *ast.BasicLit) {
 	orig := l.Value
-	okValue := func(val string) bool {
+	changeValue := func(val string) {
 		if l.Value == val {
-			return false
+			return
 		}
-		if l.Value = val; r.okChange() {
-			return true
+		if l.Value = val; !r.okChange() {
+			l.Value = orig
 		}
-		l.Value = orig
-		return false
 	}
 	switch l.Kind {
 	case token.STRING:
-		switch {
-		case okValue(`""`):
-		}
+		changeValue(`""`)
 	case token.INT:
-		switch {
-		case okValue(`0`):
-		}
+		changeValue(`0`)
 	}
 }
 
