@@ -114,6 +114,7 @@ type reducer struct {
 	impPath  string
 	matchRe  *regexp.Regexp
 	file     *ast.File
+	typConf  types.Config
 	funcDecl *ast.FuncDecl
 	srcFile  *os.File
 
@@ -151,8 +152,7 @@ func (r *reducer) okChange() bool {
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
-	conf := types.Config{}
-	if _, err := conf.Check(r.impPath, r.Fset, r.Files, nil); err != nil {
+	if _, err := r.typConf.Check(r.impPath, r.Fset, r.Files, nil); err != nil {
 		return false
 	}
 	if err := r.writeSource(); err != nil {

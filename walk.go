@@ -66,7 +66,9 @@ func (r *reducer) walk(node ast.Node) {
 		}
 
 	// Expressions
-	case *ast.Ident, *ast.BasicLit:
+	case *ast.BasicLit:
+		r.reduceLit(x)
+	case *ast.Ident:
 		// nothing to do
 
 	case *ast.Ellipsis:

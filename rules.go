@@ -3,7 +3,10 @@
 
 package main
 
-import "go/ast"
+import (
+	"go/ast"
+	"go/token"
+)
 
 // TODO: we use go/types to catch compile errors before writing to disk
 // and running the go tool. Study whether it's worth anticipating some
@@ -11,7 +14,6 @@ import "go/ast"
 
 // TODO: is this powerful and versatile enough?
 // Some ideas:
-// * It doesn't have the ast for the whole package/file
 // * go/types info could be useful
 // * Work on x/tools/go/ssa, even?
 
@@ -32,5 +34,26 @@ func (r *reducer) bypassIf(ifs *ast.IfStmt) {
 	}
 	if ifs.Else != nil && r.changeStmt(ifs.Else) {
 		return
+	}
+}
+
+func (r *reducer) reduceLit(l *ast.BasicLit) {
+	orig := l.Value
+	okValue := func(val string) bool {
+		if l.Value == val {
+			return false
+		}
+		l.Value = val
+		if r.okChange() {
+			return true
+		}
+		l.Value = orig
+		return false
+	}
+	switch l.Kind {
+	case token.STRING:
+		switch {
+		case okValue(`""`):
+		}
 	}
 }
