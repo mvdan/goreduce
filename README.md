@@ -31,10 +31,11 @@ func Crasher() {
 
 ### Rules
 
-| Summary            | Before       | After   |
-| ------------------ | ------------ | ------- |
-| Remove statement   | `a; b;`      | `a;`    |
-| Bypass to if/else  | `if a { b }` | `b`     |
-| Bypass defer       | `defer a`    | `a`     |
-| Zero lit values    | `123, "foo"` | `0, ""` |
-| Remove slice parts | `a[1:2:3]`   | `a[1:]` |
+| Summary             | Before       | After   |
+| ------------------- | ------------ | ------- |
+| Remove statement    | `a; b;`      | `a;`    |
+| Bypass to if/else   | `if a { b }` | `b`     |
+| Bypass defer        | `defer a`    | `a`     |
+| Zero lit values     | `123, "foo"` | `0, ""` |
+| Remove slice parts  | `a[1:2:3]`   | `a[1:]` |
+| Remove binary parts | `a + b`      | `a`     |

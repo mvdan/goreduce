@@ -82,3 +82,20 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 		*expr = orig
 	}
 }
+
+func (r *reducer) changeExpr(expr ast.Expr) bool {
+	orig := *r.expr
+	if *r.expr = expr; r.okChange() {
+		return true
+	}
+	*r.expr = orig
+	return false
+}
+
+// RULE: reduce binary expressions
+func (r *reducer) reduceBinary(bi *ast.BinaryExpr) {
+	switch {
+	case r.changeExpr(bi.X):
+	case r.changeExpr(bi.Y):
+	}
+}

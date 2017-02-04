@@ -21,8 +21,8 @@ func (r *reducer) walkIdentList(list []*ast.Ident) {
 }
 
 func (r *reducer) walkExprList(list []ast.Expr) {
-	for _, x := range list {
-		r.walk(x)
+	for i := range list {
+		r.walkExpr(&list[i])
 	}
 }
 
@@ -60,6 +60,11 @@ func (r *reducer) walkDeclList(list []ast.Decl) {
 	}
 }
 
+func (r *reducer) walkExpr(expr *ast.Expr) {
+	r.expr = expr
+	r.walk(*expr)
+}
+
 func (r *reducer) walk(node ast.Node) {
 	if r.didChange {
 		return
@@ -68,7 +73,7 @@ func (r *reducer) walk(node ast.Node) {
 	// Fields
 	case *ast.Field:
 		r.walkIdentList(x.Names)
-		r.walk(x.Type)
+		r.walkExpr(&x.Type)
 		if x.Tag != nil {
 			r.walk(x.Tag)
 		}
@@ -86,7 +91,7 @@ func (r *reducer) walk(node ast.Node) {
 
 	case *ast.Ellipsis:
 		if x.Elt != nil {
-			r.walk(x.Elt)
+			r.walkExpr(&x.Elt)
 		}
 
 	case *ast.FuncLit:
@@ -95,64 +100,65 @@ func (r *reducer) walk(node ast.Node) {
 
 	case *ast.CompositeLit:
 		if x.Type != nil {
-			r.walk(x.Type)
+			r.walkExpr(&x.Type)
 		}
 		r.walkExprList(x.Elts)
 
 	case *ast.ParenExpr:
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 
 	case *ast.SelectorExpr:
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 		r.walk(x.Sel)
 
 	case *ast.IndexExpr:
-		r.walk(x.X)
-		r.walk(x.Index)
+		r.walkExpr(&x.X)
+		r.walkExpr(&x.Index)
 
 	case *ast.SliceExpr:
 		r.reduceSlice(x)
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 		if x.Low != nil {
-			r.walk(x.Low)
+			r.walkExpr(&x.Low)
 		}
 		if x.High != nil {
-			r.walk(x.High)
+			r.walkExpr(&x.High)
 		}
 		if x.Max != nil {
-			r.walk(x.Max)
+			r.walkExpr(&x.Max)
 		}
 
 	case *ast.TypeAssertExpr:
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 		if x.Type != nil {
-			r.walk(x.Type)
+			r.walkExpr(&x.Type)
 		}
 
 	case *ast.CallExpr:
-		r.walk(x.Fun)
+		r.walkExpr(&x.Fun)
 		r.walkExprList(x.Args)
 
 	case *ast.StarExpr:
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 
 	case *ast.UnaryExpr:
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 
 	case *ast.BinaryExpr:
-		r.walk(x.X)
-		r.walk(x.Y)
+		r.reduceBinary(x)
+		r.walkExpr(&x.X)
+		r.walkExpr(&x.Y)
 
 	case *ast.KeyValueExpr:
-		r.walk(x.Key)
-		r.walk(x.Value)
+		r.walkExpr(&x.Key)
+		r.walkExpr(&x.Value)
 
 	// Types
 	case *ast.ArrayType:
 		if x.Len != nil {
-			r.walk(x.Len)
+			r.walkExpr(&x.Len)
 		}
-		r.walk(x.Elt)
+		r.walkExpr(&x.Elt)
 
 	case *ast.StructType:
 		r.walk(x.Fields)
@@ -169,11 +175,11 @@ func (r *reducer) walk(node ast.Node) {
 		r.walk(x.Methods)
 
 	case *ast.MapType:
-		r.walk(x.Key)
-		r.walk(x.Value)
+		r.walkExpr(&x.Key)
+		r.walkExpr(&x.Value)
 
 	case *ast.ChanType:
-		r.walk(x.Value)
+		r.walkExpr(&x.Value)
 
 	// Statements
 	case *ast.DeclStmt:
@@ -187,14 +193,14 @@ func (r *reducer) walk(node ast.Node) {
 		r.walk(x.Stmt)
 
 	case *ast.ExprStmt:
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 
 	case *ast.SendStmt:
-		r.walk(x.Chan)
-		r.walk(x.Value)
+		r.walkExpr(&x.Chan)
+		r.walkExpr(&x.Value)
 
 	case *ast.IncDecStmt:
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 
 	case *ast.AssignStmt:
 		r.walkExprList(x.Lhs)
@@ -223,7 +229,7 @@ func (r *reducer) walk(node ast.Node) {
 		if x.Init != nil {
 			r.walk(x.Init)
 		}
-		r.walk(x.Cond)
+		r.walkExpr(&x.Cond)
 		r.walk(x.Body)
 		if x.Else != nil {
 			r.walk(x.Else)
@@ -263,7 +269,7 @@ func (r *reducer) walk(node ast.Node) {
 			r.walk(x.Init)
 		}
 		if x.Cond != nil {
-			r.walk(x.Cond)
+			r.walkExpr(&x.Cond)
 		}
 		if x.Post != nil {
 			r.walk(x.Post)
@@ -272,12 +278,12 @@ func (r *reducer) walk(node ast.Node) {
 
 	case *ast.RangeStmt:
 		if x.Key != nil {
-			r.walk(x.Key)
+			r.walkExpr(&x.Key)
 		}
 		if x.Value != nil {
-			r.walk(x.Value)
+			r.walkExpr(&x.Value)
 		}
-		r.walk(x.X)
+		r.walkExpr(&x.X)
 		r.walk(x.Body)
 
 	// Declarations
@@ -290,13 +296,13 @@ func (r *reducer) walk(node ast.Node) {
 	case *ast.ValueSpec:
 		r.walkIdentList(x.Names)
 		if x.Type != nil {
-			r.walk(x.Type)
+			r.walkExpr(&x.Type)
 		}
 		r.walkExprList(x.Values)
 
 	case *ast.TypeSpec:
 		r.walk(x.Name)
-		r.walk(x.Type)
+		r.walkExpr(&x.Type)
 
 	case *ast.GenDecl:
 		for _, s := range x.Specs {

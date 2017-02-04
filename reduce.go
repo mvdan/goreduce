@@ -122,6 +122,7 @@ type reducer struct {
 
 	didChange bool
 	stmt      *ast.Stmt
+	expr      *ast.Expr
 }
 
 func matchError(matchRe *regexp.Regexp, err error) error {
