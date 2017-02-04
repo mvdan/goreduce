@@ -28,3 +28,10 @@ func Crasher() {
         println(a[10])
 }
 ```
+
+### Rules
+
+* Remove single statements: `{ a; b; }` -> `{ a; }`
+* Bypass to if or else branches: `if a { b }` -> `b`
+* Set literals to simple values: `123` -> `0`
+* Remove slice expression parts: `a[1:2:3]` -> `a[1:]`
