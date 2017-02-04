@@ -51,6 +51,9 @@ func (r *reducer) walkDeclList(list []ast.Decl) {
 }
 
 func (r *reducer) walk(node ast.Node) {
+	if r.didChange {
+		return
+	}
 	switch x := node.(type) {
 	// Fields
 	case *ast.Field:

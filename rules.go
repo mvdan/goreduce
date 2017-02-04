@@ -19,16 +19,15 @@ import (
 
 func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 	orig := *r.stmt
-	*r.stmt = stmt
-	if r.okChange() {
+	if *r.stmt = stmt; r.okChange() {
 		return true
 	}
 	*r.stmt = orig
 	return false
 }
 
+// RULE: bypass to if or else branches
 func (r *reducer) bypassIf(ifs *ast.IfStmt) {
-	// RULE: bypass to if or else branches
 	if r.changeStmt(ifs.Body) {
 		return
 	}
@@ -37,14 +36,14 @@ func (r *reducer) bypassIf(ifs *ast.IfStmt) {
 	}
 }
 
+// RULE: reduce basic lits to simple values
 func (r *reducer) reduceLit(l *ast.BasicLit) {
 	orig := l.Value
 	okValue := func(val string) bool {
 		if l.Value == val {
 			return false
 		}
-		l.Value = val
-		if r.okChange() {
+		if l.Value = val; r.okChange() {
 			return true
 		}
 		l.Value = orig
