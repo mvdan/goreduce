@@ -16,7 +16,7 @@ import (
 
 func (r *reducer) walkIdentList(list []*ast.Ident) {
 	for _, x := range list {
-		r.walk(x)
+		r.walkOther(x)
 	}
 }
 
@@ -48,21 +48,33 @@ func (r *reducer) walkStmtList(list *[]ast.Stmt) {
 		}
 	}
 	*list = orig
-	for i, x := range orig {
-		r.stmt = &orig[i]
-		r.walk(x)
+	for i := range orig {
+		r.walkStmt(&orig[i])
 	}
 }
 
 func (r *reducer) walkDeclList(list []ast.Decl) {
 	for _, x := range list {
-		r.walk(x)
+		r.walkOther(x)
 	}
 }
 
+func (r *reducer) walkStmt(stmt *ast.Stmt) {
+	r.stmt = stmt
+	r.expr = nil
+	r.walk(*stmt)
+}
+
 func (r *reducer) walkExpr(expr *ast.Expr) {
+	r.stmt = nil
 	r.expr = expr
 	r.walk(*expr)
+}
+
+func (r *reducer) walkOther(node ast.Node) {
+	r.stmt = nil
+	r.expr = nil
+	r.walk(node)
 }
 
 func (r *reducer) walk(node ast.Node) {
@@ -75,12 +87,12 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkIdentList(x.Names)
 		r.walkExpr(&x.Type)
 		if x.Tag != nil {
-			r.walk(x.Tag)
+			r.walkOther(x.Tag)
 		}
 
 	case *ast.FieldList:
 		for _, f := range x.List {
-			r.walk(f)
+			r.walkOther(f)
 		}
 
 	// Expressions
@@ -95,8 +107,8 @@ func (r *reducer) walk(node ast.Node) {
 		}
 
 	case *ast.FuncLit:
-		r.walk(x.Type)
-		r.walk(x.Body)
+		r.walkOther(x.Type)
+		r.walkOther(x.Body)
 
 	case *ast.CompositeLit:
 		if x.Type != nil {
@@ -109,7 +121,7 @@ func (r *reducer) walk(node ast.Node) {
 
 	case *ast.SelectorExpr:
 		r.walkExpr(&x.X)
-		r.walk(x.Sel)
+		r.walkOther(x.Sel)
 
 	case *ast.IndexExpr:
 		r.walkExpr(&x.X)
@@ -161,18 +173,18 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkExpr(&x.Elt)
 
 	case *ast.StructType:
-		r.walk(x.Fields)
+		r.walkOther(x.Fields)
 
 	case *ast.FuncType:
 		if x.Params != nil {
-			r.walk(x.Params)
+			r.walkOther(x.Params)
 		}
 		if x.Results != nil {
-			r.walk(x.Results)
+			r.walkOther(x.Results)
 		}
 
 	case *ast.InterfaceType:
-		r.walk(x.Methods)
+		r.walkOther(x.Methods)
 
 	case *ast.MapType:
 		r.walkExpr(&x.Key)
@@ -183,14 +195,14 @@ func (r *reducer) walk(node ast.Node) {
 
 	// Statements
 	case *ast.DeclStmt:
-		r.walk(x.Decl)
+		r.walkOther(x.Decl)
 
 	case *ast.EmptyStmt:
 		// nothing to do
 
 	case *ast.LabeledStmt:
-		r.walk(x.Label)
-		r.walk(x.Stmt)
+		r.walkOther(x.Label)
+		r.walkStmt(&x.Stmt)
 
 	case *ast.ExprStmt:
 		r.walkExpr(&x.X)
@@ -207,18 +219,18 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkExprList(x.Rhs)
 
 	case *ast.GoStmt:
-		r.walk(x.Call)
+		r.walkOther(x.Call)
 
 	case *ast.DeferStmt:
 		r.bypassDefer(x)
-		r.walk(x.Call)
+		r.walkOther(x.Call)
 
 	case *ast.ReturnStmt:
 		r.walkExprList(x.Results)
 
 	case *ast.BranchStmt:
 		if x.Label != nil {
-			r.walk(x.Label)
+			r.walkOther(x.Label)
 		}
 
 	case *ast.BlockStmt:
@@ -227,12 +239,12 @@ func (r *reducer) walk(node ast.Node) {
 	case *ast.IfStmt:
 		r.bypassIf(x)
 		if x.Init != nil {
-			r.walk(x.Init)
+			r.walkStmt(&x.Init)
 		}
 		r.walkExpr(&x.Cond)
-		r.walk(x.Body)
+		r.walkOther(x.Body)
 		if x.Else != nil {
-			r.walk(x.Else)
+			r.walkStmt(&x.Else)
 		}
 
 	case *ast.CaseClause:
@@ -241,40 +253,40 @@ func (r *reducer) walk(node ast.Node) {
 
 	case *ast.SwitchStmt:
 		if x.Init != nil {
-			r.walk(x.Init)
+			r.walkStmt(&x.Init)
 		}
 		if x.Tag != nil {
-			r.walk(x.Tag)
+			r.walkOther(x.Tag)
 		}
-		r.walk(x.Body)
+		r.walkOther(x.Body)
 
 	case *ast.TypeSwitchStmt:
 		if x.Init != nil {
-			r.walk(x.Init)
+			r.walkStmt(&x.Init)
 		}
-		r.walk(x.Assign)
-		r.walk(x.Body)
+		r.walkStmt(&x.Assign)
+		r.walkOther(x.Body)
 
 	case *ast.CommClause:
 		if x.Comm != nil {
-			r.walk(x.Comm)
+			r.walkStmt(&x.Comm)
 		}
 		r.walkStmtList(&x.Body)
 
 	case *ast.SelectStmt:
-		r.walk(x.Body)
+		r.walkOther(x.Body)
 
 	case *ast.ForStmt:
 		if x.Init != nil {
-			r.walk(x.Init)
+			r.walkStmt(&x.Init)
 		}
 		if x.Cond != nil {
 			r.walkExpr(&x.Cond)
 		}
 		if x.Post != nil {
-			r.walk(x.Post)
+			r.walkStmt(&x.Post)
 		}
-		r.walk(x.Body)
+		r.walkOther(x.Body)
 
 	case *ast.RangeStmt:
 		if x.Key != nil {
@@ -284,14 +296,14 @@ func (r *reducer) walk(node ast.Node) {
 			r.walkExpr(&x.Value)
 		}
 		r.walkExpr(&x.X)
-		r.walk(x.Body)
+		r.walkOther(x.Body)
 
 	// Declarations
 	case *ast.ImportSpec:
 		if x.Name != nil {
-			r.walk(x.Name)
+			r.walkOther(x.Name)
 		}
-		r.walk(x.Path)
+		r.walkOther(x.Path)
 
 	case *ast.ValueSpec:
 		r.walkIdentList(x.Names)
@@ -301,32 +313,32 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkExprList(x.Values)
 
 	case *ast.TypeSpec:
-		r.walk(x.Name)
+		r.walkOther(x.Name)
 		r.walkExpr(&x.Type)
 
 	case *ast.GenDecl:
 		for _, s := range x.Specs {
-			r.walk(s)
+			r.walkOther(s)
 		}
 
 	case *ast.FuncDecl:
 		if x.Recv != nil {
-			r.walk(x.Recv)
+			r.walkOther(x.Recv)
 		}
-		r.walk(x.Name)
-		r.walk(x.Type)
+		r.walkOther(x.Name)
+		r.walkOther(x.Type)
 		if x.Body != nil {
-			r.walk(x.Body)
+			r.walkOther(x.Body)
 		}
 
 	// Files and packages
 	case *ast.File:
-		r.walk(x.Name)
+		r.walkOther(x.Name)
 		r.walkDeclList(x.Decls)
 
 	case *ast.Package:
 		for _, f := range x.Files {
-			r.walk(f)
+			r.walkOther(f)
 		}
 	}
 }
