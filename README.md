@@ -33,5 +33,6 @@ func Crasher() {
 
 * Remove single statements: `{ a; b; }` -> `{ a; }`
 * Bypass to if or else branches: `if a { b }` -> `b`
+* Bypass to defer expr: `defer foo()` -> `foo()`
 * Set literals to simple values: `123` -> `0`
 * Remove slice expression parts: `a[1:2:3]` -> `a[1:]`

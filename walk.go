@@ -204,6 +204,7 @@ func (r *reducer) walk(node ast.Node) {
 		r.walk(x.Call)
 
 	case *ast.DeferStmt:
+		r.bypassDefer(x)
 		r.walk(x.Call)
 
 	case *ast.ReturnStmt:
