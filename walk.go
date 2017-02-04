@@ -98,6 +98,7 @@ func (r *reducer) walk(node ast.Node) {
 	// Expressions
 	case *ast.BasicLit:
 		r.reduceLit(x)
+
 	case *ast.Ident:
 		// nothing to do
 
@@ -196,9 +197,6 @@ func (r *reducer) walk(node ast.Node) {
 	// Statements
 	case *ast.DeclStmt:
 		r.walkOther(x.Decl)
-
-	case *ast.EmptyStmt:
-		// nothing to do
 
 	case *ast.LabeledStmt:
 		r.walkOther(x.Label)

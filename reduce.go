@@ -45,9 +45,29 @@ func emptyFile(f *os.File) error {
 	return err
 }
 
+type reducer struct {
+	loader.Config
+	*loader.PackageInfo
+
+	impPath  string
+	matchRe  *regexp.Regexp
+	file     *ast.File
+	funcDecl *ast.FuncDecl
+	srcFile  *os.File
+
+	*types.Info
+
+	didChange bool
+	stmt      *ast.Stmt
+	expr      *ast.Expr
+}
+
 func reduce(impPath, funcName, matchStr string) error {
 	r := &reducer{impPath: impPath}
-	r.typConf.Importer = importer.Default()
+	// otherwise go/types prints errors to stderr
+	// need to panic to stop typechecking
+	r.TypeChecker.Error = func(error) { panic(nil) }
+	r.TypeChecker.Importer = importer.Default()
 	var err error
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
@@ -65,6 +85,7 @@ func reduce(impPath, funcName, matchStr string) error {
 		return fmt.Errorf("expected 1 package, got %d", len(pkgInfos))
 	}
 	r.PackageInfo = pkgInfos[0]
+	r.Info = &r.PackageInfo.Info
 	pkg := r.PackageInfo.Pkg
 	if pkg.Scope().Lookup(funcName) == nil {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
@@ -109,22 +130,6 @@ func reduce(impPath, funcName, matchStr string) error {
 	return err
 }
 
-type reducer struct {
-	loader.Config
-	*loader.PackageInfo
-
-	impPath  string
-	matchRe  *regexp.Regexp
-	file     *ast.File
-	typConf  types.Config
-	funcDecl *ast.FuncDecl
-	srcFile  *os.File
-
-	didChange bool
-	stmt      *ast.Stmt
-	expr      *ast.Expr
-}
-
 func matchError(matchRe *regexp.Regexp, err error) error {
 	if err == nil {
 		return fmt.Errorf("expected an error to occur")
@@ -155,7 +160,12 @@ func (r *reducer) okChange() bool {
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
-	if _, err := r.typConf.Check(r.impPath, r.Fset, r.Files, nil); err != nil {
+	*r.Info = types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+		Defs:  make(map[*ast.Ident]types.Object),
+		Uses:  make(map[*ast.Ident]types.Object),
+	}
+	if _, err := r.TypeChecker.Check(r.impPath, r.Fset, r.Files, r.Info); err != nil {
 		return false
 	}
 	if err := r.writeSource(); err != nil {
