@@ -31,14 +31,15 @@ func Crasher() {
 
 ### Rules
 
-| Summary             | Before                  | After         |
-| ------------------- | ----------------------- | ------------- |
-| Remove statement    | `a; b`                  | `a` or `b`    |
-| Bypass to if/else   | `if a { b } else { c }` | `b` or `c`    |
-| Bypass defer        | `defer a`               | `a`           |
-| Zero lit values     | `123, "foo"`            | `0, ""`       |
-| Reduce indexes      | `a[1]`                  | `a`           |
-| Reduce slices       | `a[:2]`                 | `a` or `a[:]` |
-| Remove binary parts | `a + b`, `a || b`       | `a` or `b`    |
-| Remove unary op     | `-a`, `!a`              | `a`           |
-| Bypass star         | `*a`                    | `a`           |
+| Summary              | Before                  | After         |
+| -------------------- | ----------------------- | ------------- |
+| Remove statement     | `a; b`                  | `a` or `b`    |
+| Bypass to if/else    | `if a { b } else { c }` | `b` or `c`    |
+| Bypass to defer call | `defer a()`             | `a()`         |
+| Bypass to go call    | `go a()`                | `a()`         |
+| Zero lit values      | `123, "foo"`            | `0, ""`       |
+| Reduce indexes       | `a[1]`                  | `a`           |
+| Reduce slices        | `a[:2]`                 | `a` or `a[:]` |
+| Remove binary parts  | `a + b`, `a || b`       | `a` or `b`    |
+| Remove unary op      | `-a`, `!a`              | `a`           |
+| Bypass star          | `*a`                    | `a`           |

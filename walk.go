@@ -223,10 +223,13 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkExprList(x.Rhs)
 
 	case *ast.GoStmt:
+		// RULE: bypass to go call
+		r.changeStmt(&ast.ExprStmt{X: x.Call})
 		r.walkOther(x.Call)
 
 	case *ast.DeferStmt:
-		r.bypassDefer(x)
+		// RULE: bypass to defer call
+		r.changeStmt(&ast.ExprStmt{X: x.Call})
 		r.walkOther(x.Call)
 
 	case *ast.ReturnStmt:

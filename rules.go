@@ -27,12 +27,6 @@ func (r *reducer) bypassIf(ifs *ast.IfStmt) {
 	}
 }
 
-// RULE: bypass to defer expr
-func (r *reducer) bypassDefer(df *ast.DeferStmt) {
-	es := &ast.ExprStmt{X: df.Call}
-	r.changeStmt(es)
-}
-
 // RULE: reduce basic lits to zero values
 func (r *reducer) reduceLit(l *ast.BasicLit) {
 	orig := l.Value
