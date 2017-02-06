@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/loader"
 
 	"github.com/kisielk/gotool"
@@ -147,6 +148,7 @@ func (r *reducer) checkTest() error {
 var errNoChange = fmt.Errorf("no reduction to apply")
 
 func (r *reducer) writeSource() error {
+	r.file.Imports = nil
 	if err := emptyFile(r.srcFile); err != nil {
 		return err
 	}
@@ -166,6 +168,13 @@ func (r *reducer) okChange() bool {
 		Uses:  make(map[*ast.Ident]types.Object),
 	}
 	if _, err := r.TypeChecker.Check(r.impPath, r.Fset, r.Files, r.Info); err != nil {
+		terr, ok := err.(types.Error)
+		if ok && terr.Soft && r.shouldRetry(terr) {
+			if err := r.writeSource(); err != nil {
+				return false
+			}
+			return r.okChange()
+		}
 		return false
 	}
 	if err := r.writeSource(); err != nil {
@@ -177,6 +186,18 @@ func (r *reducer) okChange() bool {
 	// Reduction worked
 	r.didChange = true
 	return true
+}
+
+var (
+	importNotUsed = regexp.MustCompile(`"(.*)" imported but not used`)
+)
+
+func (r *reducer) shouldRetry(terr types.Error) bool {
+	if sm := importNotUsed.FindStringSubmatch(terr.Msg); sm != nil {
+		impPath := sm[1]
+		return astutil.DeleteImport(r.Fset, r.file, impPath)
+	}
+	return false
 }
 
 func (r *reducer) step() error {
