@@ -54,6 +54,9 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 
 // RULE: remove slice expression parts
 func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
+	if r.changeExpr(sl.X) {
+		return
+	}
 	for i, expr := range [...]*ast.Expr{
 		&sl.Max,
 		&sl.High,
