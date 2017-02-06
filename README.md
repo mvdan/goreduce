@@ -39,3 +39,4 @@ func Crasher() {
 | Zero lit values     | `123, "foo"`            | `0, ""`            |
 | Remove slice parts  | `a[1:2]`                | `a[1:]` or `a[:2]` |
 | Remove binary parts | `a + b`                 | `a` or `b`         |
+| Remove unary op     | `-a`                    | `a`                |

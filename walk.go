@@ -155,6 +155,8 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkExpr(&x.X)
 
 	case *ast.UnaryExpr:
+		// RULE: reduce unary expressions
+		r.changeExpr(x.X)
 		r.walkExpr(&x.X)
 
 	case *ast.BinaryExpr:
