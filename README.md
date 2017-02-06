@@ -43,3 +43,4 @@ func Crasher() {
 | Remove binary parts  | `a + b`, `a || b`       | `a` or `b`    |
 | Remove unary op      | `-a`, `!a`              | `a`           |
 | Bypass star          | `*a`                    | `a`           |
+| Bypass paren         | `(a)`                   | `a`           |

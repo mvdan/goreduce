@@ -118,6 +118,8 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkExprList(x.Elts)
 
 	case *ast.ParenExpr:
+		// RULE: reduce paren expressions
+		r.changeExpr(x.X)
 		r.walkExpr(&x.X)
 
 	case *ast.SelectorExpr:
