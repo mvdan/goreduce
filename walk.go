@@ -125,6 +125,8 @@ func (r *reducer) walk(node ast.Node) {
 		r.walkOther(x.Sel)
 
 	case *ast.IndexExpr:
+		// RULE: reduce index expressions
+		r.changeExpr(x.X)
 		r.walkExpr(&x.X)
 		r.walkExpr(&x.Index)
 

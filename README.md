@@ -37,6 +37,7 @@ func Crasher() {
 | Bypass to if/else   | `if a { b } else { c }` | `b` or `c`    |
 | Bypass defer        | `defer a`               | `a`           |
 | Zero lit values     | `123, "foo"`            | `0, ""`       |
+| Reduce indexes      | `a[1]`                  | `a`           |
 | Reduce slices       | `a[:2]`                 | `a` or `a[:]` |
 | Remove binary parts | `a + b`, `a || b`       | `a` or `b`    |
 | Remove unary op     | `-a`, `!a`              | `a`           |
