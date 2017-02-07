@@ -148,7 +148,6 @@ func (r *reducer) checkTest() error {
 var errNoChange = fmt.Errorf("no reduction to apply")
 
 func (r *reducer) writeSource() error {
-	r.file.Imports = nil
 	if err := emptyFile(r.srcFile); err != nil {
 		return err
 	}

@@ -13,6 +13,10 @@ import (
 // RULE: remove each one of the statements
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	orig := *list
+	if len(orig) == 0 {
+		return
+	}
+	l := make([]ast.Stmt, len(orig)-1)
 	for i, stmt := range orig {
 		// discard those that will break compilation
 		switch x := stmt.(type) {
@@ -23,7 +27,6 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 				continue
 			}
 		}
-		l := make([]ast.Stmt, len(orig)-1)
 		copy(l, orig[:i])
 		copy(l[i:], orig[i+1:])
 		*list = l
