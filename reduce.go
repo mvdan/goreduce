@@ -131,18 +131,15 @@ func reduce(impPath, funcName, matchStr string) error {
 	return err
 }
 
-func matchError(matchRe *regexp.Regexp, err error) error {
+func (r *reducer) checkTest() error {
+	err := runTest(r.impPath)
 	if err == nil {
 		return fmt.Errorf("expected an error to occur")
 	}
-	if s := err.Error(); !matchRe.MatchString(s) {
+	if s := err.Error(); !r.matchRe.MatchString(s) {
 		return fmt.Errorf("error does not match:\n%s", s)
 	}
 	return nil
-}
-
-func (r *reducer) checkTest() error {
-	return matchError(r.matchRe, runTest(r.impPath))
 }
 
 var errNoChange = fmt.Errorf("no reduction to apply")
@@ -211,36 +208,7 @@ func (r *reducer) step() error {
 		if r.didChange {
 			return false
 		}
-		switch x := v.(type) {
-		case *[]ast.Stmt:
-			r.removeStmt(x)
-		case *ast.IfStmt:
-			r.bypassIf(x)
-		case *ast.BasicLit:
-			r.reduceLit(x)
-		case *ast.SliceExpr:
-			r.reduceSlice(x)
-		case *ast.BinaryExpr:
-			r.reduceBinary(x)
-		case *ast.ParenExpr:
-			// RULE: reduce paren expressions
-			r.changeExpr(x.X)
-		case *ast.IndexExpr:
-			// RULE: reduce index expressions
-			r.changeExpr(x.X)
-		case *ast.StarExpr:
-			// RULE: reduce star expressions
-			r.changeExpr(x.X)
-		case *ast.UnaryExpr:
-			// RULE: reduce unary expressions
-			r.changeExpr(x.X)
-		case *ast.GoStmt:
-			// RULE: bypass to go call
-			r.changeStmt(&ast.ExprStmt{X: x.Call})
-		case *ast.DeferStmt:
-			// RULE: bypass to defer call
-			r.changeStmt(&ast.ExprStmt{X: x.Call})
-		}
+		r.reduceNode(v)
 		return true
 	})
 	if r.didChange {

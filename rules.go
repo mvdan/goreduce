@@ -10,7 +10,40 @@ import (
 
 // TODO: use x/tools/go/ssa?
 
-// RULE: remove each one of the statements
+// uses interface{} instead of ast.Node for node slices
+func (r *reducer) reduceNode(v interface{}) {
+	switch x := v.(type) {
+	case *[]ast.Stmt:
+		r.removeStmt(x)
+	case *ast.IfStmt:
+		switch {
+		case r.changeStmt(x.Body):
+		case x.Else != nil && r.changeStmt(x.Else):
+		}
+	case *ast.BasicLit:
+		r.reduceLit(x)
+	case *ast.SliceExpr:
+		r.reduceSlice(x)
+	case *ast.BinaryExpr:
+		switch {
+		case r.changeExpr(x.X):
+		case r.changeExpr(x.Y):
+		}
+	case *ast.ParenExpr:
+		r.changeExpr(x.X)
+	case *ast.IndexExpr:
+		r.changeExpr(x.X)
+	case *ast.StarExpr:
+		r.changeExpr(x.X)
+	case *ast.UnaryExpr:
+		r.changeExpr(x.X)
+	case *ast.GoStmt:
+		r.changeStmt(&ast.ExprStmt{X: x.Call})
+	case *ast.DeferStmt:
+		r.changeStmt(&ast.ExprStmt{X: x.Call})
+	}
+}
+
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	orig := *list
 	if len(orig) == 0 {
@@ -46,15 +79,15 @@ func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 	return false
 }
 
-// RULE: bypass to if or else branches
-func (r *reducer) bypassIf(ifs *ast.IfStmt) {
-	switch {
-	case r.changeStmt(ifs.Body):
-	case ifs.Else != nil && r.changeStmt(ifs.Else):
+func (r *reducer) changeExpr(expr ast.Expr) bool {
+	orig := *r.expr
+	if *r.expr = expr; r.okChange() {
+		return true
 	}
+	*r.expr = orig
+	return false
 }
 
-// RULE: reduce basic lits to zero values
 func (r *reducer) reduceLit(l *ast.BasicLit) {
 	orig := l.Value
 	changeValue := func(val string) {
@@ -73,7 +106,6 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 	}
 }
 
-// RULE: remove slice expression parts
 func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 	if r.changeExpr(sl.X) {
 		return
@@ -97,22 +129,5 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 			sl.Slice3 = true
 		}
 		*expr = orig
-	}
-}
-
-func (r *reducer) changeExpr(expr ast.Expr) bool {
-	orig := *r.expr
-	if *r.expr = expr; r.okChange() {
-		return true
-	}
-	*r.expr = orig
-	return false
-}
-
-// RULE: reduce binary expressions
-func (r *reducer) reduceBinary(bi *ast.BinaryExpr) {
-	switch {
-	case r.changeExpr(bi.X):
-	case r.changeExpr(bi.Y):
 	}
 }
