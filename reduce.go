@@ -242,7 +242,7 @@ func runTest(impPath string) error {
 		return nil
 	}
 	if strings.HasPrefix(err.Error(), "exit status") {
-		return errors.New(strings.TrimSpace(string(out)))
+		return errors.New(string(out))
 	}
 	return err
 }
