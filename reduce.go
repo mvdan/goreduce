@@ -204,7 +204,7 @@ func (r *reducer) shouldRetry(terr types.Error) bool {
 
 func (r *reducer) step() error {
 	r.didChange = false
-	r.walk(r.funcDecl.Body, func(v interface{}) bool {
+	r.walk(r.file, func(v interface{}) bool {
 		if r.didChange {
 			return false
 		}

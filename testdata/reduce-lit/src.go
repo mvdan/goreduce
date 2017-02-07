@@ -1,6 +1,7 @@
 package crasher
 
+var a = "foo"
+
 func Crasher() {
-	a := "foo"
 	println(a[10])
 }
