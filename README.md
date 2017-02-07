@@ -5,7 +5,7 @@
 Reduce a function to its simplest form as long as it produces a compiler
 error or any output (such as a panic) matching a regular expression.
 
-Still a work in progress and barely useful.
+	go get -u github.com/mvdan/goreduce
 
 ### Example
 
@@ -20,7 +20,7 @@ func Crasher() {
 }
 ```
 
-	$ goreduce -match 'index out of range' . Crasher
+	goreduce -match 'index out of range' . Crasher
 
 ```
 func Crasher() {
@@ -29,7 +29,17 @@ func Crasher() {
 }
 ```
 
+### Design
+
+* The tool should be reproducible, giving the same output for an input
+  program as long as external factors don't modify its behavior
+* The rules should be as simple and composable as possible
+* Rules should avoid generating changes that they can know won't compile
+
 ### Rules
+
+These are tested one at a time. If any of them makes the regular
+expression still match, it's left in place.
 
 | Summary              | Before                  | After         |
 | -------------------- | ----------------------- | ------------- |
@@ -44,3 +54,11 @@ func Crasher() {
 | Remove unary op      | `-a`, `!a`              | `a`           |
 | Bypass star          | `*a`                    | `a`           |
 | Bypass paren         | `(a)`                   | `a`           |
+
+### Clean-up stage
+
+Before any rules are tried, and after any valid change is found, the
+tool does some cleaning up to avoid soft compiler errors and speed up
+the process.
+
+* Remove unused imports
