@@ -69,6 +69,8 @@ func reduce(impPath, funcName, matchStr string) error {
 	// need to panic to stop typechecking
 	r.TypeChecker.Error = func(error) { panic(nil) }
 	r.TypeChecker.Importer = importer.Default()
+	r.Info = new(types.Info)
+	r.emptyInfo()
 	var err error
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
@@ -151,6 +153,12 @@ func (r *reducer) writeSource() error {
 	return printer.Fprint(r.srcFile, r.Fset, r.file)
 }
 
+func (r *reducer) emptyInfo() {
+	r.Info.Types = make(map[ast.Expr]types.TypeAndValue)
+	r.Info.Defs = make(map[*ast.Ident]types.Object)
+	r.Info.Uses = make(map[*ast.Ident]types.Object)
+}
+
 func (r *reducer) okChange() bool {
 	if r.didChange {
 		return false
@@ -158,11 +166,6 @@ func (r *reducer) okChange() bool {
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
-	*r.Info = types.Info{
-		Types: make(map[ast.Expr]types.TypeAndValue),
-		Defs:  make(map[*ast.Ident]types.Object),
-		Uses:  make(map[*ast.Ident]types.Object),
-	}
 	if _, err := r.TypeChecker.Check(r.impPath, r.Fset, r.Files, r.Info); err != nil {
 		terr, ok := err.(types.Error)
 		if ok && terr.Soft && r.shouldRetry(terr) {
