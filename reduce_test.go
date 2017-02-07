@@ -23,7 +23,7 @@ func TestReductions(t *testing.T) {
 	}
 }
 
-func readFile(t *testing.T, dir, path string) string {
+func readFile(t testing.TB, dir, path string) string {
 	bs, err := ioutil.ReadFile(filepath.Join(dir, path))
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +47,21 @@ func testReduction(name string) func(*testing.T) {
 		if want != got {
 			t.Fatalf("unexpected output!\nwant:\n%s\ngot:\n%s\n",
 				want, got)
+		}
+	}
+}
+
+func BenchmarkReduce(b *testing.B) {
+	impPath := "./testdata/remove-stmt"
+	dir := filepath.Join("testdata", "remove-stmt")
+	orig := []byte(readFile(b, dir, "src.go"))
+	match := strings.TrimRight(readFile(b, dir, "match"), "\n")
+	for i := 0; i < b.N; i++ {
+		if err := reduce(impPath, "Crasher", match); err != nil {
+			b.Fatal(err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(dir, "src.go"), orig, 0644); err != nil {
+			b.Fatal(err)
 		}
 	}
 }
