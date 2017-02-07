@@ -10,6 +10,30 @@ import (
 
 // TODO: use x/tools/go/ssa?
 
+// RULE: remove each one of the statements
+func (r *reducer) removeStmt(list *[]ast.Stmt) {
+	orig := *list
+	for i, stmt := range orig {
+		// discard those that will break compilation
+		switch x := stmt.(type) {
+		case *ast.DeclStmt, *ast.ReturnStmt:
+			continue
+		case *ast.AssignStmt:
+			if x.Tok == token.DEFINE { // :=
+				continue
+			}
+		}
+		l := make([]ast.Stmt, len(orig)-1)
+		copy(l, orig[:i])
+		copy(l[i:], orig[i+1:])
+		*list = l
+		if r.okChange() {
+			return
+		}
+	}
+	*list = orig
+}
+
 func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 	orig := *r.stmt
 	if *r.stmt = stmt; r.okChange() {

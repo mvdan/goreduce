@@ -9,10 +9,7 @@
 
 package main
 
-import (
-	"go/ast"
-	"go/token"
-)
+import "go/ast"
 
 func (r *reducer) walkIdentList(list []*ast.Ident) {
 	for _, x := range list {
@@ -27,29 +24,10 @@ func (r *reducer) walkExprList(list []ast.Expr) {
 }
 
 func (r *reducer) walkStmtList(list *[]ast.Stmt) {
-	orig := *list
-	// RULE: remove each one of the statements
-	for i, stmt := range orig {
-		// discard those that will break compilation
-		switch x := stmt.(type) {
-		case *ast.DeclStmt, *ast.ReturnStmt:
-			continue
-		case *ast.AssignStmt:
-			if x.Tok == token.DEFINE { // :=
-				continue
-			}
-		}
-		l := make([]ast.Stmt, len(orig)-1)
-		copy(l, orig[:i])
-		copy(l[i:], orig[i+1:])
-		*list = l
-		if r.okChange() {
-			return
-		}
-	}
-	*list = orig
-	for i := range orig {
-		r.walkStmt(&orig[i])
+	r.removeStmt(list)
+	l := *list
+	for i := range l {
+		r.walkStmt(&l[i])
 	}
 }
 
