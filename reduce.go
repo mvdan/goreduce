@@ -194,8 +194,14 @@ var (
 
 func (r *reducer) shouldRetry(terr types.Error) bool {
 	if sm := importNotUsed.FindStringSubmatch(terr.Msg); sm != nil {
-		impPath := sm[1]
-		return astutil.DeleteImport(r.Fset, r.file, impPath)
+		name, path := "", sm[1]
+		for _, imp := range r.file.Imports {
+			if imp.Name != nil && strings.Trim(imp.Path.Value, `"`) == path {
+				name = imp.Name.Name
+				break
+			}
+		}
+		return astutil.DeleteNamedImport(r.Fset, r.file, name, path)
 	}
 	return false
 }
