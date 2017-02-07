@@ -207,7 +207,42 @@ func (r *reducer) shouldRetry(terr types.Error) bool {
 
 func (r *reducer) step() error {
 	r.didChange = false
-	r.walk(r.funcDecl.Body)
+	r.walk(r.funcDecl.Body, func(v interface{}) bool {
+		if r.didChange {
+			return false
+		}
+		switch x := v.(type) {
+		case *[]ast.Stmt:
+			r.removeStmt(x)
+		case *ast.IfStmt:
+			r.bypassIf(x)
+		case *ast.BasicLit:
+			r.reduceLit(x)
+		case *ast.SliceExpr:
+			r.reduceSlice(x)
+		case *ast.BinaryExpr:
+			r.reduceBinary(x)
+		case *ast.ParenExpr:
+			// RULE: reduce paren expressions
+			r.changeExpr(x.X)
+		case *ast.IndexExpr:
+			// RULE: reduce index expressions
+			r.changeExpr(x.X)
+		case *ast.StarExpr:
+			// RULE: reduce star expressions
+			r.changeExpr(x.X)
+		case *ast.UnaryExpr:
+			// RULE: reduce unary expressions
+			r.changeExpr(x.X)
+		case *ast.GoStmt:
+			// RULE: bypass to go call
+			r.changeStmt(&ast.ExprStmt{X: x.Call})
+		case *ast.DeferStmt:
+			// RULE: bypass to defer call
+			r.changeStmt(&ast.ExprStmt{X: x.Call})
+		}
+		return true
+	})
 	if r.didChange {
 		return nil
 	}
