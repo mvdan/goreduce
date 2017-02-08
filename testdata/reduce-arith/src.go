@@ -2,5 +2,5 @@ package crasher
 
 func Crasher() {
 	a := ""
-	println(a[2+(-1)])
+	println(a[(+1+2)])
 }
