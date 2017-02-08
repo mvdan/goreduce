@@ -58,6 +58,7 @@ type reducer struct {
 
 	*types.Info
 
+	wd        string
 	didChange bool
 	stmt      *ast.Stmt
 	expr      *ast.Expr
@@ -65,13 +66,16 @@ type reducer struct {
 
 func reduce(impPath, funcName, matchStr string) error {
 	r := &reducer{impPath: impPath}
+	var err error
+	if r.wd, err = os.Getwd(); err != nil {
+		return err
+	}
 	// otherwise go/types prints errors to stderr
 	// need to panic to stop typechecking
 	r.TypeChecker.Error = func(error) { panic(nil) }
 	r.TypeChecker.Importer = importer.Default()
 	r.Info = new(types.Info)
 	r.emptyInfo()
-	var err error
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
@@ -135,9 +139,13 @@ func reduce(impPath, funcName, matchStr string) error {
 
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
-		lpos := r.Fset.Position(node.Pos()).String()
-		msg := fmt.Sprintf(format, a...)
-		fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(lpos), msg)
+		pos := r.Fset.Position(node.Pos())
+		rpath, err := filepath.Rel(r.wd, pos.Filename)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprintf(os.Stderr, "%s:%d: %s\n", rpath, pos.Line,
+			fmt.Sprintf(format, a...))
 	}
 }
 
