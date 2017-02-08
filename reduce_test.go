@@ -5,6 +5,7 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -52,15 +53,26 @@ func testReduction(name string) func(*testing.T) {
 }
 
 func BenchmarkReduce(b *testing.B) {
-	impPath := "./testdata/remove-stmt"
-	dir := filepath.Join("testdata", "remove-stmt")
-	orig := []byte(readFile(b, dir, "src.go"))
-	match := strings.TrimRight(readFile(b, dir, "match"), "\n")
+	dir, err := ioutil.TempDir("", "goreduce")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	if err := os.Chdir(dir); err != nil {
+		b.Fatal(err)
+	}
+	content := []byte(`package crasher
+
+func Crasher() {
+	var a []int
+	a = nil
+	println(a[0])
+}`)
+	if err := ioutil.WriteFile("src.go", content, 0644); err != nil {
+		b.Fatal(err)
+	}
 	for i := 0; i < b.N; i++ {
-		if err := reduce(impPath, "Crasher", match); err != nil {
-			b.Fatal(err)
-		}
-		if err := ioutil.WriteFile(filepath.Join(dir, "src.go"), orig, 0644); err != nil {
+		if err := reduce(".", "Crasher", "index out of range"); err != nil {
 			b.Fatal(err)
 		}
 	}
