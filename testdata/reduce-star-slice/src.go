@@ -1,7 +1,6 @@
 package crasher
 
-var a = "foo"
-
 func Crasher() {
-	println(a[10])
+	a := []*int{}
+	println(a[1:2:3])
 }

@@ -1,6 +1,7 @@
 package crasher
 
+var a = "foo"
+
 func Crasher() {
-	var a []int
-	println(a[0])
+	println(a[(+1+2)])
 }
