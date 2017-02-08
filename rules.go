@@ -70,7 +70,7 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	}
 	l := make([]ast.Stmt, len(orig)-1)
 	for i, stmt := range orig {
-		// discard those that will break compilation
+		// discard those that will likely break compilation
 		switch x := stmt.(type) {
 		case *ast.DeclStmt, *ast.ReturnStmt:
 			continue
