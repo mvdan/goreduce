@@ -227,8 +227,7 @@ func (r *reducer) step() error {
 		if r.didChange {
 			return false
 		}
-		r.reduceNode(v)
-		return true
+		return r.reduceNode(v)
 	})
 	if r.didChange {
 		return nil

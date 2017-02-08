@@ -11,8 +11,10 @@ import (
 // TODO: use x/tools/go/ssa?
 
 // uses interface{} instead of ast.Node for node slices
-func (r *reducer) reduceNode(v interface{}) {
+func (r *reducer) reduceNode(v interface{}) bool {
 	switch x := v.(type) {
+	case *ast.ImportSpec:
+		return false
 	case *[]ast.Stmt:
 		r.removeStmt(x)
 	case *ast.IfStmt:
@@ -58,6 +60,7 @@ func (r *reducer) reduceNode(v interface{}) {
 			r.logChange(x, "defer a() -> a()")
 		}
 	}
+	return true
 }
 
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
