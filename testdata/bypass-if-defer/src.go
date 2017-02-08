@@ -1,10 +1,7 @@
 package crasher
 
 func Crasher() {
-	a := []int{0}
 	if true {
-		a = nil
+		defer panic("panic message")
 	}
-
-	println(a[0])
 }

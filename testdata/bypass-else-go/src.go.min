@@ -1,7 +1,10 @@
 package crasher
 
 func Crasher() {
-	panic("panic message")
+
+	{
+		panic("panic message")
+	}
 	var c chan int
 	<-c
 }
