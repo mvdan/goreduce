@@ -19,8 +19,6 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/loader"
-
-	"github.com/kisielk/gotool"
 )
 
 const (
@@ -79,8 +77,7 @@ func reduce(impPath, funcName, matchStr string) error {
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
-	paths := gotool.ImportPaths([]string{impPath})
-	if _, err := r.FromArgs(paths, false); err != nil {
+	if _, err := r.FromArgs([]string{impPath}, false); err != nil {
 		return err
 	}
 	prog, err := r.Load()
