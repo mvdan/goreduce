@@ -18,7 +18,9 @@ func (r *reducer) reduceNode(v interface{}) {
 	case *ast.IfStmt:
 		switch {
 		case r.changeStmt(x.Body):
+			r.logChange(x, "if a { b } -> b")
 		case x.Else != nil && r.changeStmt(x.Else):
+			r.logChange(x, "if a { ... } else { c } -> c")
 		}
 	case *ast.BasicLit:
 		r.reduceLit(x)
@@ -27,20 +29,34 @@ func (r *reducer) reduceNode(v interface{}) {
 	case *ast.BinaryExpr:
 		switch {
 		case r.changeExpr(x.X):
+			r.logChange(x, "a %v b -> a", x.Op)
 		case r.changeExpr(x.Y):
+			r.logChange(x, "a %v b -> b", x.Op)
 		}
 	case *ast.ParenExpr:
-		r.changeExpr(x.X)
+		if r.changeExpr(x.X) {
+			r.logChange(x, "(a) -> a")
+		}
 	case *ast.IndexExpr:
-		r.changeExpr(x.X)
+		if r.changeExpr(x.X) {
+			r.logChange(x, "a[b] -> a")
+		}
 	case *ast.StarExpr:
-		r.changeExpr(x.X)
+		if r.changeExpr(x.X) {
+			r.logChange(x, "*a -> a")
+		}
 	case *ast.UnaryExpr:
-		r.changeExpr(x.X)
+		if r.changeExpr(x.X) {
+			r.logChange(x, "%va -> a", x.Op)
+		}
 	case *ast.GoStmt:
-		r.changeStmt(&ast.ExprStmt{X: x.Call})
+		if r.changeStmt(&ast.ExprStmt{X: x.Call}) {
+			r.logChange(x, "go a() -> a()")
+		}
 	case *ast.DeferStmt:
-		r.changeStmt(&ast.ExprStmt{X: x.Call})
+		if r.changeStmt(&ast.ExprStmt{X: x.Call}) {
+			r.logChange(x, "defer a() -> a()")
+		}
 	}
 }
 
@@ -64,6 +80,7 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 		copy(l[i:], orig[i+1:])
 		*list = l
 		if r.okChange() {
+			r.logChange(stmt, "statement removed")
 			return
 		}
 	}
@@ -90,24 +107,31 @@ func (r *reducer) changeExpr(expr ast.Expr) bool {
 
 func (r *reducer) reduceLit(l *ast.BasicLit) {
 	orig := l.Value
-	changeValue := func(val string) {
+	changeValue := func(val string) bool {
 		if l.Value == val {
-			return
+			return false
 		}
-		if l.Value = val; !r.okChange() {
-			l.Value = orig
+		if l.Value = val; r.okChange() {
+			return true
 		}
+		l.Value = orig
+		return false
 	}
 	switch l.Kind {
 	case token.STRING:
-		changeValue(`""`)
+		if changeValue(`""`) {
+			r.logChange(l, `"foo" -> ""`)
+		}
 	case token.INT:
-		changeValue(`0`)
+		if changeValue(`0`) {
+			r.logChange(l, `123 -> 0`)
+		}
 	}
 }
 
 func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 	if r.changeExpr(sl.X) {
+		r.logChange(sl, "a[b:] -> a")
 		return
 	}
 	for i, expr := range [...]*ast.Expr{
@@ -123,6 +147,7 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 			sl.Slice3 = false
 		}
 		if *expr = nil; r.okChange() {
+			r.logChange(orig, "a[b:] -> a[:]")
 			return
 		}
 		if i == 0 {

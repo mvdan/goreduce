@@ -9,7 +9,10 @@ import (
 	"os"
 )
 
-var matchStr = flag.String("match", "", "regexp to match the output")
+var (
+	matchStr = flag.String("match", "", "regexp to match the output")
+	verbose  = flag.Bool("v", false, "log applied changes to stderr")
+)
 
 func init() {
 	flag.Usage = func() {

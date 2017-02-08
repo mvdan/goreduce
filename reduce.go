@@ -133,6 +133,14 @@ func reduce(impPath, funcName, matchStr string) error {
 	return err
 }
 
+func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
+	if *verbose {
+		lpos := r.Fset.Position(node.Pos()).String()
+		msg := fmt.Sprintf(format, a...)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", filepath.Base(lpos), msg)
+	}
+}
+
 func (r *reducer) checkTest() error {
 	err := runTest(r.impPath)
 	if err == nil {
