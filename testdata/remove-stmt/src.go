@@ -1,10 +1,13 @@
 package crasher
 
+import (
+	"os"
+	foo "sync"
+)
+
 func Crasher() {
-	a := []int{}
-	if true {
-		a = append(a, 3)
-	}
-	a[1] = -2
+	var a []int
+	_ = foo.Once{}
+	_ = os.File{}
 	println(a[0])
 }

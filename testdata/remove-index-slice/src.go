@@ -1,7 +1,7 @@
 package crasher
 
 func Crasher() {
-	var a *[]int
+	var a *[][]int
 	b := *a
-	println(b)
+	println(b[1:][0])
 }

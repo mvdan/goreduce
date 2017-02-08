@@ -1,7 +1,7 @@
 package crasher
 
 func Crasher() {
-	a := []int{}
+	var a []int
 
 	println(a[0])
 }
