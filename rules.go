@@ -12,6 +12,9 @@ import (
 
 // uses interface{} instead of ast.Node for node slices
 func (r *reducer) reduceNode(v interface{}) bool {
+	if r.didChange {
+		return false
+	}
 	switch x := v.(type) {
 	case *ast.ImportSpec:
 		return false

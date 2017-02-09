@@ -90,25 +90,24 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	for _, file := range r.files {
 		fname := r.fset.Position(file.Pos()).Filename
 		tfname := filepath.Join(tdir, filepath.Base(fname))
-		dst, err := os.Create(tfname)
+		f, err := os.Create(tfname)
 		if err != nil {
 			return nil
 		}
 		if file.Name.Name == "main" {
-			mainf := delFunc(file, "main")
-			if mainf != nil && file == r.file {
-				r.origMain = mainf
+			if fd := delFunc(file, "main"); fd != nil && file == r.file {
+				r.origMain = fd
 			}
 		} else {
 			file.Name.Name = "main"
 		}
-		if err := rawPrinter.Fprint(dst, r.fset, file); err != nil {
+		if err := rawPrinter.Fprint(f, r.fset, file); err != nil {
 			return err
 		}
 		if file == r.file {
-			r.dstFile = dst
+			r.dstFile = f
 			defer r.dstFile.Close()
-		} else if err := dst.Close(); err != nil {
+		} else if err := f.Close(); err != nil {
 			return err
 		}
 		tfnames = append(tfnames, tfname)
@@ -231,12 +230,7 @@ func (r *reducer) shouldRetry(terr types.Error) bool {
 func (r *reducer) reduceLoop() (anyChanges bool) {
 	for {
 		r.didChange = false
-		r.walk(r.file, func(v interface{}) bool {
-			if r.didChange {
-				return false
-			}
-			return r.reduceNode(v)
-		})
+		r.walk(r.file, r.reduceNode)
 		if !r.didChange {
 			return
 		}
