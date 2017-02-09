@@ -160,9 +160,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 			return err
 		}
 	}
-	if err2 := r.dstFile.Close(); err == nil && err2 != nil {
-		return err2
-	}
+	r.dstFile.Close()
 	return err
 }
 
