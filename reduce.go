@@ -29,7 +29,7 @@ var (
 	mainTmpl = template.Must(template.New("main").Parse(`package main
 
 func main() {
-	{{ .Func }}()
+	{{ . }}()
 }
 `))
 	rawPrinter = printer.Config{Mode: printer.RawFormat}
@@ -117,13 +117,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	if err != nil {
 		return err
 	}
-	// Check that it compiles and the output matches before we apply
-	// any changes
-	if err := mainTmpl.Execute(mf, struct {
-		Func string
-	}{
-		Func: funcName,
-	}); err != nil {
+	if err := mainTmpl.Execute(mf, funcName); err != nil {
 		return err
 	}
 	if err := mf.Close(); err != nil {
@@ -134,6 +128,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	r.goArgs = []string{"build", "-o", r.outBin}
 	r.goArgs = append(r.goArgs, buildFlags...)
 	r.goArgs = append(r.goArgs, tfnames...)
+	// Check that the output matches before we apply any changes
 	if err := r.checkRun(); err != nil {
 		return err
 	}
@@ -167,17 +162,13 @@ func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 }
 
 func (r *reducer) checkRun() error {
-	err := r.buildAndRun()
-	if err == nil {
+	if err := r.buildAndRun(); err == nil {
 		return fmt.Errorf("expected an error to occur")
-	}
-	if s := err.Error(); !r.matchRe.MatchString(s) {
+	} else if s := err.Error(); !r.matchRe.MatchString(s) {
 		return fmt.Errorf("error does not match:\n%s", s)
 	}
 	return nil
 }
-
-var errNoChange = fmt.Errorf("no reduction to apply")
 
 func (r *reducer) okChange() bool {
 	if r.didChange {
