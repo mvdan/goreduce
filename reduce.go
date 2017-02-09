@@ -25,13 +25,16 @@ import (
 
 const mainFile = "goreduce_main.go"
 
-var mainTmpl = template.Must(template.New("test").Parse(`` +
+var (
+	mainTmpl = template.Must(template.New("test").Parse(`` +
 	`package main
 
 func main() {
 	{{ .Func }}()
 }
 `))
+	rawPrinter = printer.Config{Mode: printer.RawFormat}
+)
 
 func emptyFile(f *os.File) error {
 	if err := f.Truncate(0); err != nil {
@@ -100,7 +103,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 			return nil
 		}
 		file.Name.Name = "main"
-		if err := printer.Fprint(dst, r.fset, file); err != nil {
+		if err := rawPrinter.Fprint(dst, r.fset, file); err != nil {
 			return err
 		}
 		if file == r.file {
@@ -150,7 +153,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 			return err
 		}
 		r.file.Name.Name = r.pkg.Name
-		if err := printer.Fprint(f, r.fset, r.file); err != nil {
+		if err := rawPrinter.Fprint(f, r.fset, r.file); err != nil {
 			return err
 		}
 		if err := f.Close(); err != nil {
