@@ -68,10 +68,10 @@ func Crasher() {
 	a = nil
 	println(a[0])
 }`)
-	if err := ioutil.WriteFile("src.go", content, 0644); err != nil {
-		b.Fatal(err)
-	}
 	for i := 0; i < b.N; i++ {
+		if err := ioutil.WriteFile("src.go", content, 0644); err != nil {
+			b.Fatal(err)
+		}
 		if err := reduce(".", "Crasher", "index out of range"); err != nil {
 			b.Fatal(err)
 		}
