@@ -44,6 +44,7 @@ type reducer struct {
 	files    []*ast.File
 	file     *ast.File
 	funcDecl *ast.FuncDecl
+	origMain *ast.FuncDecl
 
 	tinfo types.Config
 
@@ -93,7 +94,14 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 		if err != nil {
 			return nil
 		}
-		file.Name.Name = "main"
+		if file.Name.Name == "main" {
+			mainf := delFunc(file, "main")
+			if mainf != nil && file == r.file {
+				r.origMain = mainf
+			}
+		} else {
+			file.Name.Name = "main"
+		}
 		if err := rawPrinter.Fprint(dst, r.fset, file); err != nil {
 			return err
 		}
@@ -144,6 +152,9 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 			return err
 		}
 		r.file.Name.Name = r.pkg.Name
+		if r.origMain != nil {
+			r.file.Decls = append(r.file.Decls, r.origMain)
+		}
 		if err := rawPrinter.Fprint(f, r.fset, r.file); err != nil {
 			return err
 		}
@@ -248,6 +259,17 @@ func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 		}
 	}
 	return nil, nil
+}
+
+func delFunc(file *ast.File, name string) *ast.FuncDecl {
+	for i, decl := range file.Decls {
+		funcDecl, ok := decl.(*ast.FuncDecl)
+		if ok && funcDecl.Name.Name == name {
+			file.Decls = append(file.Decls[:i], file.Decls[i+1:]...)
+			return funcDecl
+		}
+	}
+	return nil
 }
 
 func (r *reducer) buildAndRun() error {
