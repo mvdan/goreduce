@@ -53,7 +53,6 @@ type reducer struct {
 
 	tinfo types.Config
 
-	tdir    string
 	outBin  string
 	goArgs  []string
 	dstFile *os.File
@@ -65,11 +64,11 @@ type reducer struct {
 
 func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	r := &reducer{dir: dir}
-	var err error
-	if r.tdir, err = ioutil.TempDir("", "goreduce"); err != nil {
+	tdir, err := ioutil.TempDir("", "goreduce")
+	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(r.tdir)
+	defer os.RemoveAll(tdir)
 	r.tinfo.Importer = importer.Default()
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
@@ -95,7 +94,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	tfnames := make([]string, 0, len(r.files)+1)
 	for _, file := range r.files {
 		fname := r.fset.Position(file.Pos()).Filename
-		tfname := filepath.Join(r.tdir, filepath.Base(fname))
+		tfname := filepath.Join(tdir, filepath.Base(fname))
 		dst, err := os.Create(tfname)
 		if err != nil {
 			return nil
@@ -111,7 +110,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 		}
 		tfnames = append(tfnames, tfname)
 	}
-	mfname := filepath.Join(r.tdir, mainFile)
+	mfname := filepath.Join(tdir, mainFile)
 	mf, err := os.Create(mfname)
 	if err != nil {
 		return err
@@ -129,7 +128,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 		return err
 	}
 	tfnames = append(tfnames, mfname)
-	r.outBin = filepath.Join(r.tdir, "bin")
+	r.outBin = filepath.Join(tdir, "bin")
 	r.goArgs = append([]string{"build", "-o", r.outBin,
 		"-ldflags", "-w -s",
 	}, tfnames...)
@@ -167,11 +166,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
 		pos := r.fset.Position(node.Pos())
-		rpath, err := filepath.Rel(r.tdir, pos.Filename)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Fprintf(os.Stderr, "%s:%d: %s\n", rpath, pos.Line,
+		fmt.Fprintf(os.Stderr, "%s:%d: %s\n", pos.Filename, pos.Line,
 			fmt.Sprintf(format, a...))
 	}
 }
