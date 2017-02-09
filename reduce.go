@@ -12,13 +12,13 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"text/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -148,7 +148,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 		if r.origMain != nil {
 			r.file.Decls = append(r.file.Decls, r.origMain)
 		}
-		if err := rawPrinter.Fprint(f, r.fset, r.file); err != nil {
+		if err := printer.Fprint(f, r.fset, r.file); err != nil {
 			return err
 		}
 		if err := f.Close(); err != nil {
@@ -199,7 +199,7 @@ func (r *reducer) okChange() bool {
 	if _, err := r.dstFile.Seek(0, 0); err != nil {
 		return false
 	}
-	if err := printer.Fprint(r.dstFile, r.fset, r.file); err != nil {
+	if err := rawPrinter.Fprint(r.dstFile, r.fset, r.file); err != nil {
 		return false
 	}
 	if err := r.checkRun(); err != nil {
