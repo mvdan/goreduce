@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"go/types"
 	"html/template"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,17 +23,12 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-const (
-	testFile = "goreduce_test.go"
-	testName = "TestReduce"
-)
+const mainFile = "goreduce_main.go"
 
-var testTmpl = template.Must(template.New("test").Parse(`` +
-	`package {{ .Pkg }}
+var mainTmpl = template.Must(template.New("test").Parse(`` +
+	`package main
 
-import "testing"
-
-func {{ .TestName }}(t *testing.T) {
+func main() {
 	{{ .Func }}()
 }
 `))
@@ -46,7 +42,7 @@ func emptyFile(f *os.File) error {
 }
 
 type reducer struct {
-	impPath string
+	dir     string
 	matchRe *regexp.Regexp
 
 	fset     *token.FileSet
@@ -54,28 +50,31 @@ type reducer struct {
 	files    []*ast.File
 	file     *ast.File
 	funcDecl *ast.FuncDecl
-	srcFile  *os.File
 
 	tinfo types.Config
 
-	wd        string
+	tdir    string
+	tfnames []string
+	dstFile *os.File
+
 	didChange bool
 	stmt      *ast.Stmt
 	expr      *ast.Expr
 }
 
-func reduce(impPath, funcName, matchStr string) error {
-	r := &reducer{impPath: impPath}
+func reduce(dir, funcName, matchStr string) error {
+	r := &reducer{dir: dir}
 	var err error
-	if r.wd, err = os.Getwd(); err != nil {
+	if r.tdir, err = ioutil.TempDir("", "goreduce"); err != nil {
 		return err
 	}
+	defer os.RemoveAll(r.tdir)
 	r.tinfo.Importer = importer.Default()
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
 	r.fset = token.NewFileSet()
-	pkgs, err := parser.ParseDir(r.fset, impPath, nil, 0)
+	pkgs, err := parser.ParseDir(r.fset, r.dir, nil, 0)
 	if err != nil {
 		return err
 	}
@@ -92,40 +91,68 @@ func reduce(impPath, funcName, matchStr string) error {
 	if r.file == nil {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
-	fname := r.fset.Position(r.file.Pos()).Filename
-	testFilePath := filepath.Join(filepath.Dir(fname), testFile)
-	tf, err := os.Create(testFilePath)
+	for _, file := range r.files {
+		fname := r.fset.Position(file.Pos()).Filename
+		tfname := filepath.Join(r.tdir, filepath.Base(fname))
+		dst, err := os.Create(tfname)
+		if err != nil {
+			return nil
+		}
+		file.Name.Name = "main"
+		if err := printer.Fprint(dst, r.fset, file); err != nil {
+			return err
+		}
+		if file == r.file {
+			r.dstFile = dst
+		} else if err := dst.Close(); err != nil {
+			return err
+		}
+		r.tfnames = append(r.tfnames, tfname)
+	}
+	mfname := filepath.Join(r.tdir, mainFile)
+	mf, err := os.Create(mfname)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		tf.Close()
-		os.Remove(testFilePath)
-	}()
 	// Check that it compiles and the output matches before we apply
 	// any changes
-	if err := testTmpl.Execute(tf, struct {
-		Pkg, TestName, Func string
+	if err := mainTmpl.Execute(mf, struct {
+		Func string
 	}{
-		Pkg:      r.pkg.Name,
-		TestName: testName,
-		Func:     funcName,
+		Func: funcName,
 	}); err != nil {
 		return err
 	}
-	if err := r.checkTest(); err != nil {
+	if err := mf.Close(); err != nil {
 		return err
 	}
-	if r.srcFile, err = os.Create(fname); err != nil {
+	r.tfnames = append(r.tfnames, mfname)
+	if err := r.checkRun(); err != nil {
 		return err
 	}
+	anyChanges := false
 	for err == nil {
 		if err = r.step(); err == errNoChange {
 			err = nil
 			break // we're done
 		}
+		anyChanges = true
 	}
-	if err2 := r.srcFile.Close(); err == nil && err2 != nil {
+	if anyChanges {
+		fname := r.fset.Position(r.file.Pos()).Filename
+		f, err := os.Create(fname)
+		if err != nil {
+			return err
+		}
+		r.file.Name.Name = r.pkg.Name
+		if err := printer.Fprint(f, r.fset, r.file); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+	}
+	if err2 := r.dstFile.Close(); err == nil && err2 != nil {
 		return err2
 	}
 	return err
@@ -134,7 +161,7 @@ func reduce(impPath, funcName, matchStr string) error {
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
 		pos := r.fset.Position(node.Pos())
-		rpath, err := filepath.Rel(r.wd, pos.Filename)
+		rpath, err := filepath.Rel(r.tdir, pos.Filename)
 		if err != nil {
 			panic(err)
 		}
@@ -143,8 +170,8 @@ func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	}
 }
 
-func (r *reducer) checkTest() error {
-	err := runTest(r.impPath)
+func (r *reducer) checkRun() error {
+	err := r.buildAndRun()
 	if err == nil {
 		return fmt.Errorf("expected an error to occur")
 	}
@@ -157,10 +184,10 @@ func (r *reducer) checkTest() error {
 var errNoChange = fmt.Errorf("no reduction to apply")
 
 func (r *reducer) writeSource() error {
-	if err := emptyFile(r.srcFile); err != nil {
+	if err := emptyFile(r.dstFile); err != nil {
 		return err
 	}
-	return printer.Fprint(r.srcFile, r.fset, r.file)
+	return printer.Fprint(r.dstFile, r.fset, r.file)
 }
 
 func (r *reducer) okChange() bool {
@@ -170,7 +197,7 @@ func (r *reducer) okChange() bool {
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
-	if _, err := r.tinfo.Check(r.impPath, r.fset, r.files, nil); err != nil {
+	if _, err := r.tinfo.Check(r.dir, r.fset, r.files, nil); err != nil {
 		terr, ok := err.(types.Error)
 		if ok && terr.Soft && r.shouldRetry(terr) {
 			return r.okChange()
@@ -180,7 +207,7 @@ func (r *reducer) okChange() bool {
 	if err := r.writeSource(); err != nil {
 		return false
 	}
-	if err := r.checkTest(); err != nil {
+	if err := r.checkRun(); err != nil {
 		return false
 	}
 	// Reduction worked
@@ -217,9 +244,6 @@ func (r *reducer) step() error {
 	if r.didChange {
 		return nil
 	}
-	if err := r.writeSource(); err != nil {
-		return err
-	}
 	return errNoChange
 }
 
@@ -235,14 +259,20 @@ func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 	return nil, nil
 }
 
-func runTest(impPath string) error {
-	cmd := exec.Command("go", "test", impPath, "-run", "^"+testName+"$")
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return nil
+func (r *reducer) buildAndRun() error {
+	bin := filepath.Join(r.tdir, "bin")
+	cmd := exec.Command("go", append([]string{"build", "-o", bin}, r.tfnames...)...)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		if strings.HasPrefix(err.Error(), "exit status") {
+			return errors.New(string(out))
+		}
+		return err
 	}
-	if strings.HasPrefix(err.Error(), "exit status") {
-		return errors.New(string(out))
+	if out, err := exec.Command(bin).CombinedOutput(); err != nil {
+		if strings.HasPrefix(err.Error(), "exit status") {
+			return errors.New(string(out))
+		}
+		return err
 	}
-	return err
+	return nil
 }
