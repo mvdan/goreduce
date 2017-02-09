@@ -12,6 +12,8 @@ import (
 var (
 	matchStr = flag.String("match", "", "regexp to match the output")
 	verbose  = flag.Bool("v", false, "log applied changes to stderr")
+
+	ldflags = flag.String("ldflags", "-w -s", "as passed to 'go build'")
 )
 
 func init() {
