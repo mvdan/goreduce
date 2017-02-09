@@ -54,7 +54,8 @@ type reducer struct {
 	tinfo types.Config
 
 	tdir    string
-	tfnames []string
+	outBin  string
+	goArgs  []string
 	dstFile *os.File
 
 	didChange bool
@@ -62,7 +63,7 @@ type reducer struct {
 	expr      *ast.Expr
 }
 
-func reduce(dir, funcName, matchStr string) error {
+func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	r := &reducer{dir: dir}
 	var err error
 	if r.tdir, err = ioutil.TempDir("", "goreduce"); err != nil {
@@ -91,6 +92,7 @@ func reduce(dir, funcName, matchStr string) error {
 	if r.file == nil {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
+	tfnames := make([]string, 0, len(r.files)+1)
 	for _, file := range r.files {
 		fname := r.fset.Position(file.Pos()).Filename
 		tfname := filepath.Join(r.tdir, filepath.Base(fname))
@@ -107,7 +109,7 @@ func reduce(dir, funcName, matchStr string) error {
 		} else if err := dst.Close(); err != nil {
 			return err
 		}
-		r.tfnames = append(r.tfnames, tfname)
+		tfnames = append(tfnames, tfname)
 	}
 	mfname := filepath.Join(r.tdir, mainFile)
 	mf, err := os.Create(mfname)
@@ -126,7 +128,11 @@ func reduce(dir, funcName, matchStr string) error {
 	if err := mf.Close(); err != nil {
 		return err
 	}
-	r.tfnames = append(r.tfnames, mfname)
+	tfnames = append(tfnames, mfname)
+	r.outBin = filepath.Join(r.tdir, "bin")
+	r.goArgs = append([]string{"build", "-o", r.outBin,
+		"-ldflags", "-w -s",
+	}, tfnames...)
 	if err := r.checkRun(); err != nil {
 		return err
 	}
@@ -260,18 +266,14 @@ func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 }
 
 func (r *reducer) buildAndRun() error {
-	bin := filepath.Join(r.tdir, "bin")
-	cmd := exec.Command("go", append([]string{"build", "-o", bin,
-		"-gcflags", *gcflags,
-		"-ldflags", *ldflags,
-	}, r.tfnames...)...)
+	cmd := exec.Command("go", r.goArgs...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		if strings.HasPrefix(err.Error(), "exit status") {
 			return errors.New(string(out))
 		}
 		return err
 	}
-	if out, err := exec.Command(bin).CombinedOutput(); err != nil {
+	if out, err := exec.Command(r.outBin).CombinedOutput(); err != nil {
 		if strings.HasPrefix(err.Error(), "exit status") {
 			return errors.New(string(out))
 		}
