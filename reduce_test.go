@@ -41,7 +41,11 @@ func testReduction(name string) func(*testing.T) {
 		want := readFile(t, dir, "src.go.min")
 		match := strings.TrimRight(readFile(t, dir, "match"), "\n")
 		impPath := "./testdata/" + name
-		if err := reduce(impPath, "Crasher", match); err != nil {
+		fname := "Crasher"
+		if name == "reduce-lit-arith" {
+			fname = "crasher"
+		}
+		if err := reduce(impPath, fname, match); err != nil {
 			t.Fatal(err)
 		}
 		got := readFile(t, dir, "src.go")

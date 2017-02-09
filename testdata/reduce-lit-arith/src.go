@@ -1,7 +1,7 @@
-package crasher
+package main
 
 var a = "foo"
 
-func Crasher() {
-	println(a[(+1+2)])
+func crasher() {
+	println(a[(+1+b)])
 }
