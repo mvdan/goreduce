@@ -262,6 +262,7 @@ func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 func (r *reducer) buildAndRun() error {
 	bin := filepath.Join(r.tdir, "bin")
 	cmd := exec.Command("go", append([]string{"build", "-o", bin,
+		"-gcflags", *gcflags,
 		"-ldflags", *ldflags,
 	}, r.tfnames...)...)
 	if out, err := cmd.CombinedOutput(); err != nil {

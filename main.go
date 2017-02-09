@@ -13,6 +13,7 @@ var (
 	matchStr = flag.String("match", "", "regexp to match the output")
 	verbose  = flag.Bool("v", false, "log applied changes to stderr")
 
+	gcflags = flag.String("gcflags", "", "as passed to 'go build'")
 	ldflags = flag.String("ldflags", "-w -s", "as passed to 'go build'")
 )
 
