@@ -174,9 +174,6 @@ func (r *reducer) okChange() bool {
 	if _, err := r.TypeChecker.Check(r.impPath, r.Fset, r.Files, r.Info); err != nil {
 		terr, ok := err.(types.Error)
 		if ok && terr.Soft && r.shouldRetry(terr) {
-			if err := r.writeSource(); err != nil {
-				return false
-			}
 			return r.okChange()
 		}
 		return false
