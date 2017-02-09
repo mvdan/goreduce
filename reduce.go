@@ -127,6 +127,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	r.outBin = filepath.Join(tdir, "bin")
 	r.goArgs = []string{"build", "-o", r.outBin}
 	r.goArgs = append(r.goArgs, buildFlags...)
+	r.goArgs = append(r.goArgs, bflags...)
 	r.goArgs = append(r.goArgs, tfnames...)
 	// Check that the output matches before we apply any changes
 	if err := r.checkRun(); err != nil {
@@ -232,9 +233,9 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 	for _, file := range files {
 		for _, decl := range file.Decls {
-			funcDecl, ok := decl.(*ast.FuncDecl)
-			if ok && funcDecl.Name.Name == name {
-				return file, funcDecl
+			fd, ok := decl.(*ast.FuncDecl)
+			if ok && fd.Name.Name == name {
+				return file, fd
 			}
 		}
 	}
@@ -243,10 +244,10 @@ func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
 
 func delFunc(file *ast.File, name string) *ast.FuncDecl {
 	for i, decl := range file.Decls {
-		funcDecl, ok := decl.(*ast.FuncDecl)
-		if ok && funcDecl.Name.Name == name {
+		fd, ok := decl.(*ast.FuncDecl)
+		if ok && fd.Name.Name == name {
 			file.Decls = append(file.Decls[:i], file.Decls[i+1:]...)
-			return funcDecl
+			return fd
 		}
 	}
 	return nil
