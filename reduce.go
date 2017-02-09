@@ -212,11 +212,10 @@ func (r *reducer) okChange() bool {
 	return true
 }
 
-var (
-	importNotUsed = regexp.MustCompile(`"(.*)" imported but not used`)
-)
+var importNotUsed = regexp.MustCompile(`"(.*)" imported but not used`)
 
 func (r *reducer) shouldRetry(terr types.Error) bool {
+	// Useful as it can handle dot and underscore imports gracefully
 	if sm := importNotUsed.FindStringSubmatch(terr.Msg); sm != nil {
 		name, path := "", sm[1]
 		for _, imp := range r.file.Imports {
