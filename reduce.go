@@ -89,10 +89,10 @@ func reduce(impPath, funcName, matchStr string) error {
 	r.PackageInfo = pkgInfos[0]
 	r.Info = &r.PackageInfo.Info
 	pkg := r.PackageInfo.Pkg
-	if pkg.Scope().Lookup(funcName) == nil {
+	r.file, r.funcDecl = findFunc(r.PackageInfo.Files, funcName)
+	if r.file == nil {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
-	r.file, r.funcDecl = findFunc(r.PackageInfo.Files, funcName)
 	fname := r.Fset.Position(r.file.Pos()).Filename
 	testFilePath := filepath.Join(filepath.Dir(fname), testFile)
 	tf, err := os.Create(testFilePath)
