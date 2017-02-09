@@ -72,8 +72,6 @@ func reduce(impPath, funcName, matchStr string) error {
 	// need to panic to stop typechecking
 	r.TypeChecker.Error = func(error) { panic(nil) }
 	r.TypeChecker.Importer = importer.Default()
-	r.Info = new(types.Info)
-	r.emptyInfo()
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
@@ -164,12 +162,6 @@ func (r *reducer) writeSource() error {
 		return err
 	}
 	return printer.Fprint(r.srcFile, r.Fset, r.file)
-}
-
-func (r *reducer) emptyInfo() {
-	r.Info.Types = make(map[ast.Expr]types.TypeAndValue)
-	r.Info.Defs = make(map[*ast.Ident]types.Object)
-	r.Info.Uses = make(map[*ast.Ident]types.Object)
 }
 
 func (r *reducer) okChange() bool {
