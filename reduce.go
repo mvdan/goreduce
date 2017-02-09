@@ -189,13 +189,6 @@ func (r *reducer) checkRun() error {
 
 var errNoChange = fmt.Errorf("no reduction to apply")
 
-func (r *reducer) writeSource() error {
-	if err := emptyFile(r.dstFile); err != nil {
-		return err
-	}
-	return printer.Fprint(r.dstFile, r.fset, r.file)
-}
-
 func (r *reducer) okChange() bool {
 	if r.didChange {
 		return false
@@ -210,7 +203,10 @@ func (r *reducer) okChange() bool {
 		}
 		return false
 	}
-	if err := r.writeSource(); err != nil {
+	if err := emptyFile(r.dstFile); err != nil {
+		return false
+	}
+	if err := printer.Fprint(r.dstFile, r.fset, r.file); err != nil {
 		return false
 	}
 	if err := r.checkRun(); err != nil {
