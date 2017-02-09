@@ -129,9 +129,9 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	}
 	tfnames = append(tfnames, mfname)
 	r.outBin = filepath.Join(tdir, "bin")
-	r.goArgs = append([]string{"build", "-o", r.outBin,
-		"-ldflags", "-w -s",
-	}, tfnames...)
+	r.goArgs = []string{"build", "-o", r.outBin}
+	r.goArgs = append(r.goArgs, buildFlags...)
+	r.goArgs = append(r.goArgs, tfnames...)
 	if err := r.checkRun(); err != nil {
 		return err
 	}
