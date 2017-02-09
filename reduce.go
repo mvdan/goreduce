@@ -12,7 +12,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"html/template"
+	"text/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -26,7 +26,7 @@ import (
 const mainFile = "goreduce_main.go"
 
 var (
-	mainTmpl = template.Must(template.New("test").Parse(`package main
+	mainTmpl = template.Must(template.New("main").Parse(`package main
 
 func main() {
 	{{ .Func }}()
