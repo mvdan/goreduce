@@ -107,6 +107,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 		}
 		if file == r.file {
 			r.dstFile = dst
+			defer r.dstFile.Close()
 		} else if err := dst.Close(); err != nil {
 			return err
 		}
@@ -137,14 +138,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	if err := r.checkRun(); err != nil {
 		return err
 	}
-	anyChanges := false
-	for err == nil {
-		if err = r.step(); err == errNoChange {
-			err = nil
-			break // we're done
-		}
-		anyChanges = true
-	}
+	anyChanges := r.reduceLoop()
 	if anyChanges {
 		fname := r.fset.Position(r.file.Pos()).Filename
 		f, err := os.Create(fname)
@@ -162,8 +156,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 			return err
 		}
 	}
-	r.dstFile.Close()
-	return err
+	return nil
 }
 
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
@@ -235,18 +228,20 @@ func (r *reducer) shouldRetry(terr types.Error) bool {
 	return false
 }
 
-func (r *reducer) step() error {
-	r.didChange = false
-	r.walk(r.file, func(v interface{}) bool {
-		if r.didChange {
-			return false
+func (r *reducer) reduceLoop() (anyChanges bool) {
+	for {
+		r.didChange = false
+		r.walk(r.file, func(v interface{}) bool {
+			if r.didChange {
+				return false
+			}
+			return r.reduceNode(v)
+		})
+		if !r.didChange {
+			return
 		}
-		return r.reduceNode(v)
-	})
-	if r.didChange {
-		return nil
+		anyChanges = true
 	}
-	return errNoChange
 }
 
 func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
