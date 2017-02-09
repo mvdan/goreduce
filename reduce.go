@@ -26,8 +26,7 @@ import (
 const mainFile = "goreduce_main.go"
 
 var (
-	mainTmpl = template.Must(template.New("test").Parse(`` +
-	`package main
+	mainTmpl = template.Must(template.New("test").Parse(`package main
 
 func main() {
 	{{ .Func }}()
@@ -35,14 +34,6 @@ func main() {
 `))
 	rawPrinter = printer.Config{Mode: printer.RawFormat}
 )
-
-func emptyFile(f *os.File) error {
-	if err := f.Truncate(0); err != nil {
-		return err
-	}
-	_, err := f.Seek(0, 0)
-	return err
-}
 
 type reducer struct {
 	dir     string
@@ -199,7 +190,10 @@ func (r *reducer) okChange() bool {
 		}
 		return false
 	}
-	if err := emptyFile(r.dstFile); err != nil {
+	if err := r.dstFile.Truncate(0); err != nil {
+		return false
+	}
+	if _, err := r.dstFile.Seek(0, 0); err != nil {
 		return false
 	}
 	if err := printer.Fprint(r.dstFile, r.fset, r.file); err != nil {
