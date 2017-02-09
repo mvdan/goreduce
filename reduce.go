@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
+	"go/parser"
 	"go/printer"
+	"go/token"
 	"go/types"
 	"html/template"
 	"os"
@@ -18,7 +20,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/loader"
 )
 
 const (
@@ -45,16 +46,17 @@ func emptyFile(f *os.File) error {
 }
 
 type reducer struct {
-	loader.Config
-	*loader.PackageInfo
+	impPath string
+	matchRe *regexp.Regexp
 
-	impPath  string
-	matchRe  *regexp.Regexp
+	fset     *token.FileSet
+	pkg      *ast.Package
+	files    []*ast.File
 	file     *ast.File
 	funcDecl *ast.FuncDecl
 	srcFile  *os.File
 
-	*types.Info
+	tinfo types.Config
 
 	wd        string
 	didChange bool
@@ -68,32 +70,29 @@ func reduce(impPath, funcName, matchStr string) error {
 	if r.wd, err = os.Getwd(); err != nil {
 		return err
 	}
-	// otherwise go/types prints errors to stderr
-	// need to panic to stop typechecking
-	r.TypeChecker.Error = func(error) { panic(nil) }
-	r.TypeChecker.Importer = importer.Default()
+	r.tinfo.Importer = importer.Default()
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
-	if _, err := r.FromArgs([]string{impPath}, false); err != nil {
-		return err
-	}
-	prog, err := r.Load()
+	r.fset = token.NewFileSet()
+	pkgs, err := parser.ParseDir(r.fset, impPath, nil, 0)
 	if err != nil {
 		return err
 	}
-	pkgInfos := prog.InitialPackages()
-	if len(pkgInfos) != 1 {
-		return fmt.Errorf("expected 1 package, got %d", len(pkgInfos))
+	if len(pkgs) != 1 {
+		return fmt.Errorf("expected 1 package, got %d", len(pkgs))
 	}
-	r.PackageInfo = pkgInfos[0]
-	r.Info = &r.PackageInfo.Info
-	pkg := r.PackageInfo.Pkg
-	r.file, r.funcDecl = findFunc(r.PackageInfo.Files, funcName)
+	for _, pkg := range pkgs {
+		r.pkg = pkg
+	}
+	for _, file := range r.pkg.Files {
+		r.files = append(r.files, file)
+	}
+	r.file, r.funcDecl = findFunc(r.files, funcName)
 	if r.file == nil {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
-	fname := r.Fset.Position(r.file.Pos()).Filename
+	fname := r.fset.Position(r.file.Pos()).Filename
 	testFilePath := filepath.Join(filepath.Dir(fname), testFile)
 	tf, err := os.Create(testFilePath)
 	if err != nil {
@@ -108,7 +107,7 @@ func reduce(impPath, funcName, matchStr string) error {
 	if err := testTmpl.Execute(tf, struct {
 		Pkg, TestName, Func string
 	}{
-		Pkg:      pkg.Name(),
+		Pkg:      r.pkg.Name,
 		TestName: testName,
 		Func:     funcName,
 	}); err != nil {
@@ -134,7 +133,7 @@ func reduce(impPath, funcName, matchStr string) error {
 
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
-		pos := r.Fset.Position(node.Pos())
+		pos := r.fset.Position(node.Pos())
 		rpath, err := filepath.Rel(r.wd, pos.Filename)
 		if err != nil {
 			panic(err)
@@ -161,7 +160,7 @@ func (r *reducer) writeSource() error {
 	if err := emptyFile(r.srcFile); err != nil {
 		return err
 	}
-	return printer.Fprint(r.srcFile, r.Fset, r.file)
+	return printer.Fprint(r.srcFile, r.fset, r.file)
 }
 
 func (r *reducer) okChange() bool {
@@ -171,7 +170,7 @@ func (r *reducer) okChange() bool {
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
-	if _, err := r.TypeChecker.Check(r.impPath, r.Fset, r.Files, r.Info); err != nil {
+	if _, err := r.tinfo.Check(r.impPath, r.fset, r.files, nil); err != nil {
 		terr, ok := err.(types.Error)
 		if ok && terr.Soft && r.shouldRetry(terr) {
 			return r.okChange()
@@ -202,7 +201,7 @@ func (r *reducer) shouldRetry(terr types.Error) bool {
 				break
 			}
 		}
-		return astutil.DeleteNamedImport(r.Fset, r.file, name, path)
+		return astutil.DeleteNamedImport(r.fset, r.file, name, path)
 	}
 	return false
 }
