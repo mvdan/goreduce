@@ -78,7 +78,19 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	for i, stmt := range orig {
 		// discard those that will likely break compilation
 		switch x := stmt.(type) {
-		case *ast.DeclStmt, *ast.ReturnStmt:
+		case *ast.DeclStmt:
+			gd := x.Decl.(*ast.GenDecl)
+			if len(gd.Specs) != 1 {
+				continue
+			}
+			vs, ok := gd.Specs[0].(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			if len(vs.Names) != 1 || vs.Names[0].Name != "_" {
+				continue
+			}
+		case *ast.ReturnStmt:
 			continue
 		case *ast.AssignStmt:
 			if x.Tok == token.DEFINE { // :=
