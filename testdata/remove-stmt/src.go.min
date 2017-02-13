@@ -1,5 +1,7 @@
 package crasher
 
+import "os"
+
 func Crasher() {
 	var a []int
 	var _ os.File
