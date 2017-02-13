@@ -67,9 +67,11 @@ func BenchmarkReduce(b *testing.B) {
 	}
 	content := []byte(`package crasher
 
+import "sync"
+
 func Crasher() {
 	var a []int
-	a = nil
+	_ = sync.Once{}
 	println(a[0])
 }`)
 	for i := 0; i < b.N; i++ {
