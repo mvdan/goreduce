@@ -57,6 +57,8 @@ type reducer struct {
 	expr      *ast.Expr
 }
 
+var errNoReduction = fmt.Errorf("could not reduce program")
+
 func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	r := &reducer{dir: dir}
 	tdir, err := ioutil.TempDir("", "goreduce")
@@ -133,23 +135,23 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	if err := r.checkRun(); err != nil {
 		return err
 	}
-	anyChanges := r.reduceLoop()
-	if anyChanges {
-		fname := r.fset.Position(r.file.Pos()).Filename
-		f, err := os.Create(fname)
-		if err != nil {
-			return err
-		}
-		r.file.Name.Name = r.pkg.Name
-		if r.origMain != nil {
-			r.file.Decls = append(r.file.Decls, r.origMain)
-		}
-		if err := printer.Fprint(f, r.fset, r.file); err != nil {
-			return err
-		}
-		if err := f.Close(); err != nil {
-			return err
-		}
+	if anyChanges := r.reduceLoop(); !anyChanges {
+		return errNoReduction
+	}
+	fname := r.fset.Position(r.file.Pos()).Filename
+	f, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	r.file.Name.Name = r.pkg.Name
+	if r.origMain != nil {
+		r.file.Decls = append(r.file.Decls, r.origMain)
+	}
+	if err := printer.Fprint(f, r.fset, r.file); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
 	}
 	return nil
 }
