@@ -24,10 +24,13 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	case *[]ast.Stmt:
 		r.removeStmt(x)
 	case *ast.IfStmt:
-		switch {
-		case r.changeStmt(x.Body):
+		undo := r.afterDelete(x.Cond)
+		if r.changeStmt(x.Body) {
 			r.logChange(x, "if a { b } -> b")
-		case x.Else != nil && r.changeStmt(x.Else):
+			break
+		}
+		undo()
+		if x.Else != nil && r.changeStmt(x.Else) {
 			r.logChange(x, "if a { ... } else { c } -> c")
 		}
 	case *ast.BasicLit:
@@ -118,6 +121,7 @@ func (r *reducer) afterDelete(node ast.Node) (undo func()) {
 	type redoVar struct {
 		id   *ast.Ident
 		name string
+		asgn *ast.AssignStmt
 	}
 	var vars []redoVar
 
@@ -136,11 +140,23 @@ func (r *reducer) afterDelete(node ast.Node) (undo func()) {
 			ast.Inspect(r.file, func(node ast.Node) bool {
 				switch x := node.(type) {
 				case *ast.Ident:
-					vars = append(vars, redoVar{x, x.Name})
+					vars = append(vars, redoVar{x, x.Name, nil})
 					if r.info.Defs[x] == obj {
 						x.Name = "_"
 					}
 				case *ast.AssignStmt:
+					if len(x.Lhs) != 1 {
+						return false
+					}
+					id, ok := x.Lhs[0].(*ast.Ident)
+					if !ok {
+						return false
+					}
+					if r.info.Defs[id] != obj {
+						return false
+					}
+					vars = append(vars, redoVar{id, id.Name, x})
+					id.Name, x.Tok = "_", token.ASSIGN
 					return false
 				}
 				return true
@@ -153,6 +169,9 @@ func (r *reducer) afterDelete(node ast.Node) (undo func()) {
 		}
 		for _, rvar := range vars {
 			rvar.id.Name = rvar.name
+			if rvar.asgn != nil {
+				rvar.asgn.Tok = token.DEFINE
+			}
 		}
 	}
 }

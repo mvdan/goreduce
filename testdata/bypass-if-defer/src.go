@@ -1,7 +1,8 @@
 package crasher
 
 func Crasher() {
-	if true {
+	a := true
+	if a {
 		defer panic("panic message")
 	}
 }
