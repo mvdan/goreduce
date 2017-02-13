@@ -97,42 +97,7 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 				continue
 			}
 		}
-		type redoImp struct {
-			name, path string
-		}
-		var imps []redoImp
-		type redoVar struct {
-			id   *ast.Ident
-			name string
-		}
-		var vars []redoVar
-
-		for _, obj := range r.unusedAfterDelete(stmt) {
-			switch x := obj.(type) {
-			case *types.PkgName:
-				name := x.Name()
-				if x.Imported().Name() == name {
-					// import wasn't named
-					name = ""
-				}
-				path := x.Imported().Path()
-				astutil.DeleteNamedImport(r.fset, r.file, name, path)
-				imps = append(imps, redoImp{name, path})
-			case *types.Var:
-				ast.Inspect(r.file, func(node ast.Node) bool {
-					switch x := node.(type) {
-					case *ast.Ident:
-						vars = append(vars, redoVar{x, x.Name})
-						if r.info.Defs[x] == obj {
-							x.Name = "_"
-						}
-					case *ast.AssignStmt:
-						return false
-					}
-					return true
-				})
-			}
-		}
+		undo := r.afterDelete(stmt)
 		copy(l, orig[:i])
 		copy(l[i:], orig[i+1:])
 		*list = l
@@ -140,6 +105,49 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 			r.logChange(stmt, "statement removed")
 			return
 		}
+		undo()
+	}
+	*list = orig
+}
+
+func (r *reducer) afterDelete(node ast.Node) (undo func()) {
+	type redoImp struct {
+		name, path string
+	}
+	var imps []redoImp
+	type redoVar struct {
+		id   *ast.Ident
+		name string
+	}
+	var vars []redoVar
+
+	for _, obj := range r.unusedAfterDelete(node) {
+		switch x := obj.(type) {
+		case *types.PkgName:
+			name := x.Name()
+			if x.Imported().Name() == name {
+				// import wasn't named
+				name = ""
+			}
+			path := x.Imported().Path()
+			astutil.DeleteNamedImport(r.fset, r.file, name, path)
+			imps = append(imps, redoImp{name, path})
+		case *types.Var:
+			ast.Inspect(r.file, func(node ast.Node) bool {
+				switch x := node.(type) {
+				case *ast.Ident:
+					vars = append(vars, redoVar{x, x.Name})
+					if r.info.Defs[x] == obj {
+						x.Name = "_"
+					}
+				case *ast.AssignStmt:
+					return false
+				}
+				return true
+			})
+		}
+	}
+	return func() {
 		for _, imp := range imps {
 			astutil.AddNamedImport(r.fset, r.file, imp.name, imp.path)
 		}
@@ -147,7 +155,6 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 			rvar.id.Name = rvar.name
 		}
 	}
-	*list = orig
 }
 
 func (r *reducer) unusedAfterDelete(node ast.Node) (objs []types.Object) {
