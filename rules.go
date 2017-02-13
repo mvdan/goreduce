@@ -6,6 +6,9 @@ package main
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // TODO: use x/tools/go/ssa?
@@ -82,6 +85,16 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 				continue
 			}
 		}
+		for _, obj := range r.unusedAfterDelete(stmt) {
+			pkgName := obj.(*types.PkgName)
+			name := pkgName.Name()
+			if pkgName.Imported().Name() == name {
+				// import wasn't named
+				name = ""
+			}
+			path := pkgName.Imported().Path()
+			astutil.DeleteNamedImport(r.fset, r.file, name, path)
+		}
 		copy(l, orig[:i])
 		copy(l[i:], orig[i+1:])
 		*list = l
@@ -91,6 +104,36 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 		}
 	}
 	*list = orig
+}
+
+func (r *reducer) unusedAfterDelete(node ast.Node) (objs []types.Object) {
+	remaining := make(map[types.Object]int)
+	ast.Inspect(node, func(node ast.Node) bool {
+		id, ok := node.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		obj := r.info.Uses[id]
+		if obj == nil {
+			return true
+		}
+		if num, e := remaining[obj]; e {
+			if num == 1 {
+				objs = append(objs, obj)
+			} else {
+				remaining[obj]--
+			}
+		}
+		if num, e := r.numUses[obj]; e {
+			if num == 1 {
+				objs = append(objs, obj)
+			} else {
+				remaining[obj] = num - 1
+			}
+		}
+		return true
+	})
+	return
 }
 
 func (r *reducer) changeStmt(stmt ast.Stmt) bool {

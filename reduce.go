@@ -19,8 +19,6 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
-
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 const mainFile = "goreduce_main.go"
@@ -48,6 +46,8 @@ type reducer struct {
 
 	tconf types.Config
 	info  *types.Info
+
+	numUses map[types.Object]int
 
 	outBin  string
 	goArgs  []string
@@ -205,19 +205,9 @@ func (r *reducer) okChange() bool {
 	return true
 }
 
-var importNotUsed = regexp.MustCompile(`"(.*)" imported but not used`)
-
 func (r *reducer) shouldRetry(terr types.Error) bool {
-	// Useful as it can handle dot and underscore imports gracefully
-	if sm := importNotUsed.FindStringSubmatch(terr.Msg); sm != nil {
-		name, path := "", sm[1]
-		for _, imp := range r.file.Imports {
-			if imp.Name != nil && strings.Trim(imp.Path.Value, `"`) == path {
-				name = imp.Name.Name
-				break
-			}
-		}
-		return astutil.DeleteNamedImport(r.fset, r.file, name, path)
+	if strings.Contains(terr.Msg, "imported but not used") {
+		panic("unused imports should have been removed already")
 	}
 	return false
 }
@@ -231,12 +221,26 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 		if _, err := r.tconf.Check(r.dir, r.fset, r.files, r.info); err != nil {
 			panic("types.Check should not error here")
 		}
+		r.fillUses()
 		r.didChange = false
 		r.walk(r.file, r.reduceNode)
 		if !r.didChange {
 			return
 		}
 		anyChanges = true
+	}
+}
+
+func (r *reducer) fillUses() {
+	r.numUses = make(map[types.Object]int)
+	for _, obj := range r.info.Uses {
+		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != "main" {
+			continue
+		}
+		if _, ok := obj.(*types.PkgName); !ok {
+			continue
+		}
+		r.numUses[obj]++
 	}
 }
 

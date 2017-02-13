@@ -7,7 +7,7 @@ import (
 
 func Crasher() {
 	var a []int
-	_ = foo.Once{}
+	_, _ = foo.Once{}, foo.Once{}
 	_ = os.File{}
 	println(a[0])
 }
