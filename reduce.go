@@ -46,7 +46,8 @@ type reducer struct {
 	funcDecl *ast.FuncDecl
 	origMain *ast.FuncDecl
 
-	tinfo types.Config
+	tconf types.Config
+	info  *types.Info
 
 	outBin  string
 	goArgs  []string
@@ -66,7 +67,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 		return err
 	}
 	defer os.RemoveAll(tdir)
-	r.tinfo.Importer = importer.Default()
+	r.tconf.Importer = importer.Default()
 	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
 		return err
 	}
@@ -180,7 +181,7 @@ func (r *reducer) okChange() bool {
 	// go/types catches most compile errors before writing
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
-	if _, err := r.tinfo.Check(r.dir, r.fset, r.files, nil); err != nil {
+	if _, err := r.tconf.Check(r.dir, r.fset, r.files, nil); err != nil {
 		terr, ok := err.(types.Error)
 		if ok && terr.Soft && r.shouldRetry(terr) {
 			return r.okChange()
@@ -222,7 +223,14 @@ func (r *reducer) shouldRetry(terr types.Error) bool {
 }
 
 func (r *reducer) reduceLoop() (anyChanges bool) {
+	r.info = &types.Info{
+		Defs: make(map[*ast.Ident]types.Object),
+		Uses: make(map[*ast.Ident]types.Object),
+	}
 	for {
+		if _, err := r.tconf.Check(r.dir, r.fset, r.files, r.info); err != nil {
+			panic("types.Check should not error here")
+		}
 		r.didChange = false
 		r.walk(r.file, r.reduceNode)
 		if !r.didChange {
