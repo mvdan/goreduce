@@ -182,9 +182,8 @@ func (r *reducer) okChange() bool {
 	// to disk and running the go tool. Since quite a lot of
 	// changes are nonsensical, this is often a big win.
 	if _, err := r.tconf.Check(r.dir, r.fset, r.files, nil); err != nil {
-		terr, ok := err.(types.Error)
-		if ok && terr.Soft && r.shouldRetry(terr) {
-			return r.okChange()
+		if terr, ok := err.(types.Error); ok && terr.Soft {
+			//println(terr.Msg)
 		}
 		return false
 	}
@@ -203,13 +202,6 @@ func (r *reducer) okChange() bool {
 	// Reduction worked
 	r.didChange = true
 	return true
-}
-
-func (r *reducer) shouldRetry(terr types.Error) bool {
-	if strings.Contains(terr.Msg, "imported but not used") {
-		panic("unused imports should have been removed already")
-	}
-	return false
 }
 
 func (r *reducer) reduceLoop() (anyChanges bool) {
@@ -235,12 +227,13 @@ func (r *reducer) fillUses() {
 	r.numUses = make(map[types.Object]int)
 	for _, obj := range r.info.Uses {
 		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != "main" {
+			// builtin or declared outside of our pkg
 			continue
 		}
-		if _, ok := obj.(*types.PkgName); !ok {
-			continue
+		switch obj.(type) {
+		case *types.PkgName, *types.Var:
+			r.numUses[obj]++
 		}
-		r.numUses[obj]++
 	}
 }
 

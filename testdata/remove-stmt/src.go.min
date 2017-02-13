@@ -2,6 +2,7 @@ package crasher
 
 func Crasher() {
 	var a []int
+	var _ os.File
 
 	println(a[0])
 }

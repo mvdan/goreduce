@@ -5,6 +5,6 @@ func Crasher() {
 	{
 		panic("panic message")
 	}
-	var c chan int
-	<-c
+	var _ chan int
+
 }
