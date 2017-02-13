@@ -24,34 +24,48 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	case *[]ast.Stmt:
 		r.removeStmt(x)
 	case *ast.IfStmt:
-		undo := r.afterDelete(x.Cond)
+		undo := r.afterDelete(x.Init, x.Cond, x.Else)
 		if r.changeStmt(x.Body) {
 			r.logChange(x, "if a { b } -> b")
 			break
 		}
 		undo()
-		if x.Else != nil && r.changeStmt(x.Else) {
-			r.logChange(x, "if a { ... } else { c } -> c")
+		if x.Else != nil {
+			undo := r.afterDelete(x.Init, x.Cond, x.Body)
+			if r.changeStmt(x.Else) {
+				r.logChange(x, "if a { ... } else { c } -> c")
+				break
+			}
+			undo()
 		}
 	case *ast.BasicLit:
 		r.reduceLit(x)
 	case *ast.SliceExpr:
 		r.reduceSlice(x)
 	case *ast.BinaryExpr:
-		switch {
-		case r.changeExpr(x.X):
+		undo := r.afterDelete(x.Y)
+		if r.changeExpr(x.X) {
 			r.logChange(x, "a %v b -> a", x.Op)
-		case r.changeExpr(x.Y):
-			r.logChange(x, "a %v b -> b", x.Op)
+			break
 		}
+		undo()
+		undo = r.afterDelete(x.X)
+		if r.changeExpr(x.Y) {
+			r.logChange(x, "a %v b -> b", x.Op)
+			break
+		}
+		undo()
 	case *ast.ParenExpr:
 		if r.changeExpr(x.X) {
 			r.logChange(x, "(a) -> a")
 		}
 	case *ast.IndexExpr:
+		undo := r.afterDelete(x.Index)
 		if r.changeExpr(x.X) {
 			r.logChange(x, "a[b] -> a")
+			break
 		}
+		undo()
 	case *ast.StarExpr:
 		if r.changeExpr(x.X) {
 			r.logChange(x, "*a -> a")
@@ -113,7 +127,7 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	*list = orig
 }
 
-func (r *reducer) afterDelete(node ast.Node) (undo func()) {
+func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 	type redoImp struct {
 		name, path string
 	}
@@ -125,7 +139,7 @@ func (r *reducer) afterDelete(node ast.Node) (undo func()) {
 	}
 	var vars []redoVar
 
-	for _, obj := range r.unusedAfterDelete(node) {
+	for _, obj := range r.unusedAfterDelete(nodes...) {
 		switch x := obj.(type) {
 		case *types.PkgName:
 			name := x.Name()
@@ -176,33 +190,39 @@ func (r *reducer) afterDelete(node ast.Node) (undo func()) {
 	}
 }
 
-func (r *reducer) unusedAfterDelete(node ast.Node) (objs []types.Object) {
+func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 	remaining := make(map[types.Object]int)
-	ast.Inspect(node, func(node ast.Node) bool {
-		id, ok := node.(*ast.Ident)
-		if !ok {
-			return true
+	for _, node := range nodes {
+		if node == nil {
+			// for convenience
+			continue
 		}
-		obj := r.info.Uses[id]
-		if obj == nil {
-			return true
-		}
-		if num, e := remaining[obj]; e {
-			if num == 1 {
-				objs = append(objs, obj)
-			} else {
-				remaining[obj]--
+		ast.Inspect(node, func(node ast.Node) bool {
+			id, ok := node.(*ast.Ident)
+			if !ok {
+				return true
 			}
-		}
-		if num, e := r.numUses[obj]; e {
-			if num == 1 {
-				objs = append(objs, obj)
-			} else {
-				remaining[obj] = num - 1
+			obj := r.info.Uses[id]
+			if obj == nil {
+				return true
 			}
-		}
-		return true
-	})
+			if num, e := remaining[obj]; e {
+				if num == 1 {
+					objs = append(objs, obj)
+				} else {
+					remaining[obj]--
+				}
+			}
+			if num, e := r.numUses[obj]; e {
+				if num == 1 {
+					objs = append(objs, obj)
+				} else {
+					remaining[obj] = num - 1
+				}
+			}
+			return true
+		})
+	}
 	return
 }
 
