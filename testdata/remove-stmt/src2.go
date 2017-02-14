@@ -1,0 +1,3 @@
+package crasher
+
+func main() {}

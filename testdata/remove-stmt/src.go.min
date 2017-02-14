@@ -5,6 +5,3 @@ func Crasher() {
 
 	_ = a[0]
 }
-
-func main() {
-}

@@ -12,6 +12,3 @@ func Crasher() {
 	println(b)
 	_ = false || a[0]
 }
-
-func main() {
-}
