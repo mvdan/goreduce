@@ -183,7 +183,7 @@ func (r *reducer) okChange() bool {
 	// changes are nonsensical, this is often a big win.
 	if _, err := r.tconf.Check(r.dir, r.fset, r.files, nil); err != nil {
 		if terr, ok := err.(types.Error); ok && terr.Soft {
-			//println(terr.Msg)
+			println("unexpected go/types soft error: " + terr.Msg)
 		}
 		return false
 	}
