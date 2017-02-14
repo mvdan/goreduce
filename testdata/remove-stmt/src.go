@@ -12,3 +12,6 @@ func Crasher() {
 	println(b)
 	println(a[0])
 }
+
+func main() {
+}

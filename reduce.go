@@ -97,13 +97,10 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 		if err != nil {
 			return nil
 		}
-		if file.Name.Name == "main" {
-			if fd := delFunc(file, "main"); fd != nil && file == r.file {
-				r.origMain = fd
-			}
-		} else {
-			file.Name.Name = "main"
+		if fd := delFunc(file, "main"); fd != nil && file == r.file {
+			r.origMain = fd
 		}
+		file.Name.Name = "main"
 		if err := rawPrinter.Fprint(f, r.fset, file); err != nil {
 			return err
 		}

@@ -5,3 +5,6 @@ func Crasher() {
 
 	println(a[0])
 }
+
+func main() {
+}
