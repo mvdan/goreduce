@@ -89,14 +89,13 @@ func (r *reducer) reduceNode(v interface{}) bool {
 
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	orig := *list
-	if len(orig) == 0 {
-		return
-	}
 	l := make([]ast.Stmt, len(orig)-1)
+stmtLoop:
 	for i, stmt := range orig {
 		// discard those that will likely break compilation
 		switch x := stmt.(type) {
 		case *ast.DeclStmt:
+			// TODO: support more complex decls
 			gd := x.Decl.(*ast.GenDecl)
 			if len(gd.Specs) != 1 {
 				continue
@@ -105,8 +104,10 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 			if !ok {
 				continue
 			}
-			if len(vs.Names) != 1 || vs.Names[0].Name != "_" {
-				continue
+			for _, name := range vs.Names {
+				if name.Name != "_" {
+					continue stmtLoop
+				}
 			}
 		case *ast.ReturnStmt:
 			continue
@@ -183,7 +184,7 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 						x.Name = "_"
 					}
 				case *ast.AssignStmt:
-					// TODO: support more complex AssignStmts
+					// TODO: support more complex assigns
 					if len(x.Lhs) != 1 {
 						return false
 					}

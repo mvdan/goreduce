@@ -24,10 +24,10 @@ func (r *reducer) walkExprList(list []ast.Expr, fn func(v interface{}) bool) {
 }
 
 func (r *reducer) walkStmtList(list *[]ast.Stmt, fn func(v interface{}) bool) {
-	if !fn(list) {
+	l := *list
+	if len(l) == 0 || !fn(list) {
 		return
 	}
-	l := *list
 	for i := range l {
 		r.walkStmt(&l[i], fn)
 	}
