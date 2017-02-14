@@ -23,6 +23,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		return false
 	case *[]ast.Stmt:
 		r.removeStmt(x)
+		r.inlineBlock(x)
 	case *ast.IfStmt:
 		undo := r.afterDelete(x.Init, x.Cond, x.Else)
 		if r.changeStmt(x.Body) {
@@ -123,6 +124,27 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 			return
 		}
 		undo()
+	}
+	*list = orig
+}
+
+// TODO: name collisions, move to cleanup once 100% sure it will work
+func (r *reducer) inlineBlock(list *[]ast.Stmt) {
+	orig := *list
+	for i, stmt := range orig {
+		bl, ok := stmt.(*ast.BlockStmt)
+		if !ok {
+			continue
+		}
+		var l []ast.Stmt
+		l = append(l, orig[:i]...)
+		l = append(l, bl.List...)
+		l = append(l, orig[i+1:]...)
+		*list = l
+		if r.okChange() {
+			r.logChange(stmt, "block inlined")
+			return
+		}
 	}
 	*list = orig
 }
