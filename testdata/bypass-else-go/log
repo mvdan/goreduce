@@ -1,0 +1,6 @@
+testdata/bypass-else-go/src.go:6: if a { ... } else { c } -> c
+testdata/bypass-else-go/src.go:4: statement removed
+testdata/bypass-else-go/src.go:5: statement removed
+testdata/bypass-else-go/src.go:9: go a() -> a()
+testdata/bypass-else-go/src.go:12: statement removed
+testdata/bypass-else-go/src.go:11: statement removed

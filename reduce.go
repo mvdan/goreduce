@@ -12,6 +12,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -35,6 +36,7 @@ func main() {
 
 type reducer struct {
 	dir     string
+	logOut  io.Writer
 	matchRe *regexp.Regexp
 
 	fset     *token.FileSet
@@ -60,15 +62,15 @@ type reducer struct {
 
 var errNoReduction = fmt.Errorf("could not reduce program")
 
-func reduce(dir, funcName, matchStr string, bflags ...string) error {
-	r := &reducer{dir: dir}
+func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) error {
+	r := &reducer{dir: dir, logOut: logOut}
 	tdir, err := ioutil.TempDir("", "goreduce")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tdir)
 	r.tconf.Importer = importer.Default()
-	if r.matchRe, err = regexp.Compile(matchStr); err != nil {
+	if r.matchRe, err = regexp.Compile(match); err != nil {
 		return err
 	}
 	r.fset = token.NewFileSet()
@@ -154,7 +156,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
 		pos := r.fset.Position(node.Pos())
-		fmt.Fprintf(os.Stderr, "%s:%d: %s\n", pos.Filename, pos.Line,
+		fmt.Fprintf(r.logOut, "%s:%d: %s\n", pos.Filename, pos.Line,
 			fmt.Sprintf(format, a...))
 	}
 }

@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ func TestReductions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	*verbose = true
 	for _, path := range paths {
 		name := filepath.Base(path)
 		t.Run(name, testReduction(name))
@@ -45,13 +47,20 @@ func testReduction(name string) func(*testing.T) {
 		if name == "reduce-lit-arith" {
 			fname = "crasher"
 		}
-		if err := reduce(impPath, fname, match); err != nil {
+		var b bytes.Buffer
+		if err := reduce(impPath, fname, match, &b); err != nil {
 			t.Fatal(err)
 		}
 		got := readFile(t, dir, "src.go")
 		if want != got {
-			t.Fatalf("unexpected output!\nwant:\n%s\ngot:\n%s\n",
+			t.Fatalf("unexpected program output\nwant:\n%sgot:\n%s",
 				want, got)
+		}
+		gotLog := b.String()
+		wantLog := readFile(t, dir, "log")
+		if wantLog != gotLog {
+			t.Fatalf("unexpected log output\nwant:\n%sgot:\n%s",
+				wantLog, gotLog)
 		}
 	}
 }
@@ -78,7 +87,8 @@ func Crasher() {
 		if err := ioutil.WriteFile("src.go", content, 0644); err != nil {
 			b.Fatal(err)
 		}
-		if err := reduce(".", "Crasher", "index out of range"); err != nil {
+		err := reduce(".", "Crasher", "index out of range", ioutil.Discard)
+		if err != nil {
 			b.Fatal(err)
 		}
 	}

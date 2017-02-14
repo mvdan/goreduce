@@ -1,0 +1,3 @@
+testdata/remove-index-slice/src.go:5: a[b] -> a
+testdata/remove-index-slice/src.go:5: a[b:] -> a
+testdata/remove-index-slice/src.go:5: (a) -> a

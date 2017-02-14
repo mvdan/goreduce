@@ -1,0 +1,3 @@
+testdata/bypass-if-defer/src.go:5: if a { b } -> b
+testdata/bypass-if-defer/src.go:4: statement removed
+testdata/bypass-if-defer/src.go:6: defer a() -> a()
