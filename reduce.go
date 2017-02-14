@@ -151,10 +151,7 @@ func reduce(dir, funcName, matchStr string, bflags ...string) error {
 	if err := printer.Fprint(f, r.fset, r.file); err != nil {
 		return err
 	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return nil
+	return f.Close()
 }
 
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
