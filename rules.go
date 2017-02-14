@@ -311,7 +311,14 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 			sl.Slice3 = false
 		}
 		if *expr = nil; r.okChange() {
-			r.logChange(orig, "a[b:] -> a[:]")
+			switch i {
+			case 0:
+				r.logChange(orig, "a[b:c:d] -> a[b:c]")
+			case 1:
+				r.logChange(orig, "a[b:c] -> a[b:]")
+			case 2:
+				r.logChange(orig, "a[b:c] -> a[:c]")
+			}
 			return
 		}
 		if i == 0 {
