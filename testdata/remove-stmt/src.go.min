@@ -1,9 +1,9 @@
 package crasher
 
 func Crasher() {
-	var a []int
+	var a []bool
 
-	println(a[0])
+	_ = a[0]
 }
 
 func main() {

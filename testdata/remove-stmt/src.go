@@ -6,11 +6,11 @@ import (
 )
 
 func Crasher() {
-	var a []int
+	var a []bool
 	var b *os.File
 	_, _ = foo.Once{}, foo.Once{}
 	println(b)
-	println(a[0])
+	_ = false || a[0]
 }
 
 func main() {
