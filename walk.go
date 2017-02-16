@@ -97,11 +97,6 @@ func (w *walker) walkSingle(v interface{}) {
 		}
 
 	// Expressions
-	case *ast.BasicLit:
-
-	case *ast.Ident:
-		// nothing to do
-
 	case *ast.Ellipsis:
 		if x.Elt != nil {
 			w.walkExpr(&x.Elt)
