@@ -109,8 +109,6 @@ stmtLoop:
 					continue stmtLoop
 				}
 			}
-		case *ast.ReturnStmt:
-			continue
 		case *ast.AssignStmt:
 			if x.Tok == token.DEFINE { // :=
 				continue
