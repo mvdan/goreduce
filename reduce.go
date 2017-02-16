@@ -56,8 +56,8 @@ type reducer struct {
 	dstFile *os.File
 
 	didChange bool
-	stmt      *ast.Stmt
-	expr      *ast.Expr
+
+	walker
 }
 
 var errNoReduction = fmt.Errorf("could not reduce program")

@@ -11,68 +11,73 @@ package main
 
 import "go/ast"
 
-func (r *reducer) walkIdentList(list []*ast.Ident, fn func(v interface{}) bool) {
+type walker struct {
+	stmt *ast.Stmt
+	expr *ast.Expr
+}
+
+func (w *walker) walkIdentList(list []*ast.Ident, fn func(v interface{}) bool) {
 	for _, x := range list {
-		r.walkOther(x, fn)
+		w.walkOther(x, fn)
 	}
 }
 
-func (r *reducer) walkExprList(list []ast.Expr, fn func(v interface{}) bool) {
+func (w *walker) walkExprList(list []ast.Expr, fn func(v interface{}) bool) {
 	for i := range list {
-		r.walkExpr(&list[i], fn)
+		w.walkExpr(&list[i], fn)
 	}
 }
 
-func (r *reducer) walkStmtList(list *[]ast.Stmt, fn func(v interface{}) bool) {
+func (w *walker) walkStmtList(list *[]ast.Stmt, fn func(v interface{}) bool) {
 	l := *list
 	if len(l) == 0 || !fn(list) {
 		return
 	}
 	for i := range l {
-		r.walkStmt(&l[i], fn)
+		w.walkStmt(&l[i], fn)
 	}
 }
 
-func (r *reducer) walkDeclList(list []ast.Decl, fn func(v interface{}) bool) {
+func (w *walker) walkDeclList(list []ast.Decl, fn func(v interface{}) bool) {
 	for _, x := range list {
-		r.walkOther(x, fn)
+		w.walkOther(x, fn)
 	}
 }
 
-func (r *reducer) walkStmt(stmt *ast.Stmt, fn func(v interface{}) bool) {
-	r.stmt = stmt
-	r.expr = nil
-	r.walk(*stmt, fn)
+func (w *walker) walkStmt(stmt *ast.Stmt, fn func(v interface{}) bool) {
+	w.stmt = stmt
+	w.expr = nil
+	w.walk(*stmt, fn)
 }
 
-func (r *reducer) walkExpr(expr *ast.Expr, fn func(v interface{}) bool) {
-	r.stmt = nil
-	r.expr = expr
-	r.walk(*expr, fn)
+func (w *walker) walkExpr(expr *ast.Expr, fn func(v interface{}) bool) {
+	w.stmt = nil
+	w.expr = expr
+	w.walk(*expr, fn)
 }
 
-func (r *reducer) walkOther(node ast.Node, fn func(v interface{}) bool) {
-	r.stmt = nil
-	r.expr = nil
-	r.walk(node, fn)
+func (w *walker) walkOther(node ast.Node, fn func(v interface{}) bool) {
+	w.stmt = nil
+	w.expr = nil
+	w.walk(node, fn)
 }
 
-func (r *reducer) walk(node ast.Node, fn func(v interface{}) bool) {
+func (w *walker) walk(node ast.Node, fn func(v interface{}) bool) {
 	if !fn(node) {
 		return
 	}
 	switch x := node.(type) {
 	// Fields
 	case *ast.Field:
-		r.walkIdentList(x.Names, fn)
-		r.walkExpr(&x.Type, fn)
+		w.walkIdentList(x.Names, fn)
+		w.walkExpr(&x.Type, fn)
 		if x.Tag != nil {
-			r.walkOther(x.Tag, fn)
+			w.walkOther(x.Tag, fn)
 		}
 
 	case *ast.FieldList:
 		for _, f := range x.List {
-			r.walkOther(f, fn)
+			w.walkOther(f, fn)
 		}
 
 	// Expressions
@@ -83,235 +88,235 @@ func (r *reducer) walk(node ast.Node, fn func(v interface{}) bool) {
 
 	case *ast.Ellipsis:
 		if x.Elt != nil {
-			r.walkExpr(&x.Elt, fn)
+			w.walkExpr(&x.Elt, fn)
 		}
 
 	case *ast.FuncLit:
-		r.walkOther(x.Type, fn)
-		r.walkOther(x.Body, fn)
+		w.walkOther(x.Type, fn)
+		w.walkOther(x.Body, fn)
 
 	case *ast.CompositeLit:
 		if x.Type != nil {
-			r.walkExpr(&x.Type, fn)
+			w.walkExpr(&x.Type, fn)
 		}
-		r.walkExprList(x.Elts, fn)
+		w.walkExprList(x.Elts, fn)
 
 	case *ast.ParenExpr:
-		r.walkExpr(&x.X, fn)
+		w.walkExpr(&x.X, fn)
 
 	case *ast.SelectorExpr:
-		r.walkExpr(&x.X, fn)
-		r.walkOther(x.Sel, fn)
+		w.walkExpr(&x.X, fn)
+		w.walkOther(x.Sel, fn)
 
 	case *ast.IndexExpr:
-		r.walkExpr(&x.X, fn)
-		r.walkExpr(&x.Index, fn)
+		w.walkExpr(&x.X, fn)
+		w.walkExpr(&x.Index, fn)
 
 	case *ast.SliceExpr:
-		r.walkExpr(&x.X, fn)
+		w.walkExpr(&x.X, fn)
 		if x.Low != nil {
-			r.walkExpr(&x.Low, fn)
+			w.walkExpr(&x.Low, fn)
 		}
 		if x.High != nil {
-			r.walkExpr(&x.High, fn)
+			w.walkExpr(&x.High, fn)
 		}
 		if x.Max != nil {
-			r.walkExpr(&x.Max, fn)
+			w.walkExpr(&x.Max, fn)
 		}
 
 	case *ast.TypeAssertExpr:
-		r.walkExpr(&x.X, fn)
+		w.walkExpr(&x.X, fn)
 		if x.Type != nil {
-			r.walkExpr(&x.Type, fn)
+			w.walkExpr(&x.Type, fn)
 		}
 
 	case *ast.CallExpr:
-		r.walkExpr(&x.Fun, fn)
-		r.walkExprList(x.Args, fn)
+		w.walkExpr(&x.Fun, fn)
+		w.walkExprList(x.Args, fn)
 
 	case *ast.StarExpr:
-		r.walkExpr(&x.X, fn)
+		w.walkExpr(&x.X, fn)
 
 	case *ast.UnaryExpr:
-		r.walkExpr(&x.X, fn)
+		w.walkExpr(&x.X, fn)
 
 	case *ast.BinaryExpr:
-		r.walkExpr(&x.X, fn)
-		r.walkExpr(&x.Y, fn)
+		w.walkExpr(&x.X, fn)
+		w.walkExpr(&x.Y, fn)
 
 	case *ast.KeyValueExpr:
-		r.walkExpr(&x.Key, fn)
-		r.walkExpr(&x.Value, fn)
+		w.walkExpr(&x.Key, fn)
+		w.walkExpr(&x.Value, fn)
 
 	// Types
 	case *ast.ArrayType:
 		if x.Len != nil {
-			r.walkExpr(&x.Len, fn)
+			w.walkExpr(&x.Len, fn)
 		}
-		r.walkExpr(&x.Elt, fn)
+		w.walkExpr(&x.Elt, fn)
 
 	case *ast.StructType:
-		r.walkOther(x.Fields, fn)
+		w.walkOther(x.Fields, fn)
 
 	case *ast.FuncType:
 		if x.Params != nil {
-			r.walkOther(x.Params, fn)
+			w.walkOther(x.Params, fn)
 		}
 		if x.Results != nil {
-			r.walkOther(x.Results, fn)
+			w.walkOther(x.Results, fn)
 		}
 
 	case *ast.InterfaceType:
-		r.walkOther(x.Methods, fn)
+		w.walkOther(x.Methods, fn)
 
 	case *ast.MapType:
-		r.walkExpr(&x.Key, fn)
-		r.walkExpr(&x.Value, fn)
+		w.walkExpr(&x.Key, fn)
+		w.walkExpr(&x.Value, fn)
 
 	case *ast.ChanType:
-		r.walkExpr(&x.Value, fn)
+		w.walkExpr(&x.Value, fn)
 
 	// Statements
 	case *ast.DeclStmt:
-		r.walkOther(x.Decl, fn)
+		w.walkOther(x.Decl, fn)
 
 	case *ast.LabeledStmt:
-		r.walkOther(x.Label, fn)
-		r.walkStmt(&x.Stmt, fn)
+		w.walkOther(x.Label, fn)
+		w.walkStmt(&x.Stmt, fn)
 
 	case *ast.ExprStmt:
-		r.walkExpr(&x.X, fn)
+		w.walkExpr(&x.X, fn)
 
 	case *ast.SendStmt:
-		r.walkExpr(&x.Chan, fn)
-		r.walkExpr(&x.Value, fn)
+		w.walkExpr(&x.Chan, fn)
+		w.walkExpr(&x.Value, fn)
 
 	case *ast.IncDecStmt:
-		r.walkExpr(&x.X, fn)
+		w.walkExpr(&x.X, fn)
 
 	case *ast.AssignStmt:
-		r.walkExprList(x.Lhs, fn)
-		r.walkExprList(x.Rhs, fn)
+		w.walkExprList(x.Lhs, fn)
+		w.walkExprList(x.Rhs, fn)
 
 	case *ast.GoStmt:
-		r.walkOther(x.Call, fn)
+		w.walkOther(x.Call, fn)
 
 	case *ast.DeferStmt:
-		r.walkOther(x.Call, fn)
+		w.walkOther(x.Call, fn)
 
 	case *ast.ReturnStmt:
-		r.walkExprList(x.Results, fn)
+		w.walkExprList(x.Results, fn)
 
 	case *ast.BranchStmt:
 		if x.Label != nil {
-			r.walkOther(x.Label, fn)
+			w.walkOther(x.Label, fn)
 		}
 
 	case *ast.BlockStmt:
-		r.walkStmtList(&x.List, fn)
+		w.walkStmtList(&x.List, fn)
 
 	case *ast.IfStmt:
 		if x.Init != nil {
-			r.walkStmt(&x.Init, fn)
+			w.walkStmt(&x.Init, fn)
 		}
-		r.walkExpr(&x.Cond, fn)
-		r.walkOther(x.Body, fn)
+		w.walkExpr(&x.Cond, fn)
+		w.walkOther(x.Body, fn)
 		if x.Else != nil {
-			r.walkStmt(&x.Else, fn)
+			w.walkStmt(&x.Else, fn)
 		}
 
 	case *ast.CaseClause:
-		r.walkExprList(x.List, fn)
-		r.walkStmtList(&x.Body, fn)
+		w.walkExprList(x.List, fn)
+		w.walkStmtList(&x.Body, fn)
 
 	case *ast.SwitchStmt:
 		if x.Init != nil {
-			r.walkStmt(&x.Init, fn)
+			w.walkStmt(&x.Init, fn)
 		}
 		if x.Tag != nil {
-			r.walkOther(x.Tag, fn)
+			w.walkOther(x.Tag, fn)
 		}
-		r.walkOther(x.Body, fn)
+		w.walkOther(x.Body, fn)
 
 	case *ast.TypeSwitchStmt:
 		if x.Init != nil {
-			r.walkStmt(&x.Init, fn)
+			w.walkStmt(&x.Init, fn)
 		}
-		r.walkStmt(&x.Assign, fn)
-		r.walkOther(x.Body, fn)
+		w.walkStmt(&x.Assign, fn)
+		w.walkOther(x.Body, fn)
 
 	case *ast.CommClause:
 		if x.Comm != nil {
-			r.walkStmt(&x.Comm, fn)
+			w.walkStmt(&x.Comm, fn)
 		}
-		r.walkStmtList(&x.Body, fn)
+		w.walkStmtList(&x.Body, fn)
 
 	case *ast.SelectStmt:
-		r.walkOther(x.Body, fn)
+		w.walkOther(x.Body, fn)
 
 	case *ast.ForStmt:
 		if x.Init != nil {
-			r.walkStmt(&x.Init, fn)
+			w.walkStmt(&x.Init, fn)
 		}
 		if x.Cond != nil {
-			r.walkExpr(&x.Cond, fn)
+			w.walkExpr(&x.Cond, fn)
 		}
 		if x.Post != nil {
-			r.walkStmt(&x.Post, fn)
+			w.walkStmt(&x.Post, fn)
 		}
-		r.walkOther(x.Body, fn)
+		w.walkOther(x.Body, fn)
 
 	case *ast.RangeStmt:
 		if x.Key != nil {
-			r.walkExpr(&x.Key, fn)
+			w.walkExpr(&x.Key, fn)
 		}
 		if x.Value != nil {
-			r.walkExpr(&x.Value, fn)
+			w.walkExpr(&x.Value, fn)
 		}
-		r.walkExpr(&x.X, fn)
-		r.walkOther(x.Body, fn)
+		w.walkExpr(&x.X, fn)
+		w.walkOther(x.Body, fn)
 
 	// Declarations
 	case *ast.ImportSpec:
 		if x.Name != nil {
-			r.walkOther(x.Name, fn)
+			w.walkOther(x.Name, fn)
 		}
-		r.walkOther(x.Path, fn)
+		w.walkOther(x.Path, fn)
 
 	case *ast.ValueSpec:
-		r.walkIdentList(x.Names, fn)
+		w.walkIdentList(x.Names, fn)
 		if x.Type != nil {
-			r.walkExpr(&x.Type, fn)
+			w.walkExpr(&x.Type, fn)
 		}
-		r.walkExprList(x.Values, fn)
+		w.walkExprList(x.Values, fn)
 
 	case *ast.TypeSpec:
-		r.walkOther(x.Name, fn)
-		r.walkExpr(&x.Type, fn)
+		w.walkOther(x.Name, fn)
+		w.walkExpr(&x.Type, fn)
 
 	case *ast.GenDecl:
 		for _, s := range x.Specs {
-			r.walkOther(s, fn)
+			w.walkOther(s, fn)
 		}
 
 	case *ast.FuncDecl:
 		if x.Recv != nil {
-			r.walkOther(x.Recv, fn)
+			w.walkOther(x.Recv, fn)
 		}
-		r.walkOther(x.Name, fn)
-		r.walkOther(x.Type, fn)
+		w.walkOther(x.Name, fn)
+		w.walkOther(x.Type, fn)
 		if x.Body != nil {
-			r.walkOther(x.Body, fn)
+			w.walkOther(x.Body, fn)
 		}
 
 	// Files and packages
 	case *ast.File:
-		r.walkOther(x.Name, fn)
-		r.walkDeclList(x.Decls, fn)
+		w.walkOther(x.Name, fn)
+		w.walkDeclList(x.Decls, fn)
 
 	case *ast.Package:
 		for _, f := range x.Files {
-			r.walkOther(f, fn)
+			w.walkOther(f, fn)
 		}
 	}
 }
