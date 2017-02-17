@@ -186,7 +186,7 @@ func (r *reducer) okChange() bool {
 	if err := r.dstFile.Truncate(0); err != nil {
 		return false
 	}
-	if _, err := r.dstFile.Seek(0, 0); err != nil {
+	if _, err := r.dstFile.Seek(0, io.SeekStart); err != nil {
 		return false
 	}
 	if err := rawPrinter.Fprint(r.dstFile, r.fset, r.file); err != nil {
