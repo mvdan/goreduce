@@ -4,7 +4,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -18,7 +17,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"text/template"
 )
 
@@ -162,10 +160,12 @@ func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 }
 
 func (r *reducer) checkRun() error {
-	if err := r.buildAndRun(); err == nil {
-		return fmt.Errorf("expected an error to occur")
-	} else if s := err.Error(); !r.matchRe.MatchString(s) {
-		return fmt.Errorf("error does not match:\n%s", s)
+	out, err := r.buildAndRun()
+	if err != nil {
+		return err
+	}
+	if !r.matchRe.Match(out) {
+		return fmt.Errorf("error does not match:\n%s", string(out))
 	}
 	return nil
 }
@@ -256,19 +256,19 @@ func delFunc(file *ast.File, name string) *ast.FuncDecl {
 	return nil
 }
 
-func (r *reducer) buildAndRun() error {
+func (r *reducer) buildAndRun() ([]byte, error) {
 	cmd := exec.Command("go", r.goArgs...)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		if strings.HasPrefix(err.Error(), "exit status") {
-			return errors.New(string(out))
+		if _, ok := err.(*exec.ExitError); ok {
+			return out, nil
 		}
-		return err
+		return nil, err
 	}
 	if out, err := exec.Command(r.outBin).CombinedOutput(); err != nil {
-		if strings.HasPrefix(err.Error(), "exit status") {
-			return errors.New(string(out))
+		if _, ok := err.(*exec.ExitError); ok {
+			return out, nil
 		}
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, fmt.Errorf("expected an error to occur")
 }
