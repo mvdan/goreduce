@@ -204,8 +204,6 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 				name = ""
 			}
 			path := x.Imported().Path()
-			// TODO: astutil import funcs modify line
-			// information, while our changes don't
 			astutil.DeleteNamedImport(r.fset, r.file, name, path)
 			imps = append(imps, redoImp{name, path})
 		case *types.Var:
