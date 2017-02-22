@@ -43,6 +43,16 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		r.reduceLit(x)
 	case *ast.SliceExpr:
 		r.reduceSlice(x)
+	case *ast.CompositeLit:
+		if len(x.Elts) == 0 {
+			break
+		}
+		orig := x.Elts
+		if x.Elts = nil; r.okChange() {
+			r.logChange(x, "T{a, b} -> T{}")
+			break
+		}
+		x.Elts = orig
 	case *ast.BinaryExpr:
 		undo := r.afterDelete(x.Y)
 		if r.changeExpr(x.X) {

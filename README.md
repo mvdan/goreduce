@@ -49,6 +49,7 @@ expression still match, it's left in place.
 | Bypass to defer call | `defer a()`             | `a()`         |
 | Bypass to go call    | `go a()`                | `a()`         |
 | Zero lit values      | `123, "foo"`            | `0, ""`       |
+| Empty composite lits | `T{a, b}`               | `T{}`         |
 | Reduce indexes       | `a[1]`                  | `a`           |
 | Reduce slices        | `a[:2]`                 | `a` or `a[:]` |
 | Remove binary parts  | `a + b`, `a || b`       | `a` or `b`    |
