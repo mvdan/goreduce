@@ -44,7 +44,7 @@ expression still match, it's left in place.
 | Summary              | Before                  | After         |
 | -------------------- | ----------------------- | ------------- |
 | Remove statement     | `a; b`                  | `a` or `b`    |
-| Inline block         | `{ a }                  | `a`           |
+| Inline block         | `{ a }`                 | `a`           |
 | Bypass to if/else    | `if a { b } else { c }` | `b` or `c`    |
 | Bypass to defer call | `defer a()`             | `a()`         |
 | Bypass to go call    | `go a()`                | `a()`         |
