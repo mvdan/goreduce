@@ -38,6 +38,7 @@ type reducer struct {
 	matchRe *regexp.Regexp
 
 	fset     *token.FileSet
+	origFset *token.FileSet
 	pkg      *ast.Package
 	files    []*ast.File
 	file     *ast.File
@@ -79,6 +80,8 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	if len(pkgs) != 1 {
 		return fmt.Errorf("expected 1 package, got %d", len(pkgs))
 	}
+	r.origFset = token.NewFileSet()
+	parser.ParseDir(r.origFset, r.dir, nil, 0)
 	for _, pkg := range pkgs {
 		r.pkg = pkg
 	}
@@ -153,7 +156,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
-		pos := r.fset.Position(node.Pos())
+		pos := r.origFset.Position(node.Pos())
 		fmt.Fprintf(r.logOut, "%s:%d: %s\n", pos.Filename, pos.Line,
 			fmt.Sprintf(format, a...))
 	}

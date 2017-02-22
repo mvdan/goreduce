@@ -1,4 +1,4 @@
-testdata/remove-stmt/src.go:10: statement removed
 testdata/remove-stmt/src.go:11: statement removed
-testdata/remove-stmt/src.go:9: statement removed
-testdata/remove-stmt/src.go:12: a || b -> b
+testdata/remove-stmt/src.go:12: statement removed
+testdata/remove-stmt/src.go:10: statement removed
+testdata/remove-stmt/src.go:13: a || b -> b
