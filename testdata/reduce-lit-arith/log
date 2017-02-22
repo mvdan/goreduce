@@ -2,4 +2,4 @@ testdata/reduce-lit-arith/src.go:3: "foo" -> ""
 testdata/reduce-lit-arith/src.go:6: (a) -> a
 testdata/reduce-lit-arith/src.go:6: a + b -> a
 testdata/reduce-lit-arith/src.go:6: +a -> a
-testdata/reduce-lit-arith/src.go:6: 123 -> 0
+testdata/reduce-lit-arith/src.go:6: 1 -> 0

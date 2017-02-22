@@ -4,9 +4,11 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -50,7 +52,12 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		orig := x.Elts
 		undo := r.afterDeleteExprs(x.Elts)
 		if x.Elts = nil; r.okChange() {
-			r.logChange(x, "T{a, b} -> T{}")
+			t := "T"
+			switch x.Type.(type) {
+			case *ast.ArrayType:
+				t = "[]" + t
+			}
+			r.logChange(x, "%s{a, b} -> %s{}", t, t)
 			break
 		}
 		undo()
@@ -131,12 +138,20 @@ stmtLoop:
 		copy(l[i:], orig[i+1:])
 		*list = l
 		if r.okChange() {
-			r.logChange(stmt, "statement removed")
+			r.logChange(stmt, "%s removed", nodeType(stmt))
 			return
 		}
 		undo()
 	}
 	*list = orig
+}
+
+func nodeType(n ast.Node) string {
+	s := fmt.Sprintf("%T", n)
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		s = s[i+1:]
+	}
+	return s
 }
 
 // TODO: name collisions, move to cleanup once 100% sure it will work
@@ -303,11 +318,17 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 	switch l.Kind {
 	case token.STRING:
 		if changeValue(`""`) {
-			r.logChange(l, `"foo" -> ""`)
+			if len(orig) > 10 {
+				orig = fmt.Sprintf(`%s..."`, orig[:7])
+			}
+			r.logChange(l, `%s -> ""`, orig)
 		}
 	case token.INT:
 		if changeValue(`0`) {
-			r.logChange(l, `123 -> 0`)
+			if len(orig) > 10 {
+				orig = fmt.Sprintf(`%s...`, orig[:7])
+			}
+			r.logChange(l, `%s -> 0`, orig)
 		}
 	}
 }
