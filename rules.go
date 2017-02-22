@@ -48,10 +48,12 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		orig := x.Elts
+		undo := r.afterDeleteExprs(x.Elts)
 		if x.Elts = nil; r.okChange() {
 			r.logChange(x, "T{a, b} -> T{}")
 			break
 		}
+		undo()
 		x.Elts = orig
 	case *ast.BinaryExpr:
 		undo := r.afterDelete(x.Y)
@@ -156,6 +158,14 @@ func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 		}
 	}
 	*list = orig
+}
+
+func (r *reducer) afterDeleteExprs(exprs []ast.Expr) (undo func()) {
+	nodes := make([]ast.Node, len(exprs))
+	for i, expr := range exprs {
+		nodes[i] = expr
+	}
+	return r.afterDelete(nodes...)
 }
 
 func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {

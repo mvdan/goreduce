@@ -6,9 +6,10 @@ import (
 )
 
 func Crasher() {
-	a := []bool{false}
-	var b *os.File
+	b := false
+	bs := []bool{b}
+	var f *os.File
 	_, _ = foo.Once{}, foo.Once{}
-	println(b)
-	_ = false || a[1]
+	println(f)
+	_ = false || bs[1]
 }

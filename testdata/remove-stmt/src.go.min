@@ -1,7 +1,8 @@
 package crasher
 
 func Crasher() {
-	a := []bool{}
 
-	_ = a[0]
+	bs := []bool{}
+
+	_ = bs[0]
 }
