@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -53,8 +54,11 @@ type reducer struct {
 	outBin  string
 	goArgs  []string
 	dstFile *os.File
+	dstBuf  *bytes.Buffer
 
 	didChange bool
+
+	tried map[string]bool
 
 	walker
 }
@@ -62,7 +66,12 @@ type reducer struct {
 var errNoReduction = fmt.Errorf("could not reduce program")
 
 func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) error {
-	r := &reducer{dir: dir, logOut: logOut}
+	r := &reducer{
+		dir:    dir,
+		logOut: logOut,
+		tried:  make(map[string]bool),
+		dstBuf: bytes.NewBuffer(nil),
+	}
 	tdir, err := ioutil.TempDir("", "goreduce")
 	if err != nil {
 		return err
@@ -189,13 +198,22 @@ func (r *reducer) okChange() bool {
 			}
 		}
 	}
+	r.dstBuf.Reset()
+	if err := rawPrinter.Fprint(r.dstBuf, r.fset, r.file); err != nil {
+		return false
+	}
+	if s := r.dstBuf.String(); r.tried[s] {
+		return false
+	} else {
+		r.tried[s] = true
+	}
 	if err := r.dstFile.Truncate(0); err != nil {
 		return false
 	}
 	if _, err := r.dstFile.Seek(0, io.SeekStart); err != nil {
 		return false
 	}
-	if err := rawPrinter.Fprint(r.dstFile, r.fset, r.file); err != nil {
+	if _, err := r.dstFile.Write(r.dstBuf.Bytes()); err != nil {
 		return false
 	}
 	if err := r.checkRun(); err != nil {
