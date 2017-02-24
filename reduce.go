@@ -89,22 +89,21 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	if len(pkgs) != 1 {
 		return fmt.Errorf("expected 1 package, got %d", len(pkgs))
 	}
-	r.origFset = token.NewFileSet()
-	parser.ParseDir(r.origFset, r.dir, nil, 0)
 	for _, pkg := range pkgs {
 		r.pkg = pkg
 	}
-	for _, file := range r.pkg.Files {
+	r.origFset = token.NewFileSet()
+	parser.ParseDir(r.origFset, r.dir, nil, 0)
+	tfnames := make([]string, 0, len(r.pkg.Files)+1)
+	for fpath, file := range r.pkg.Files {
+		if r.funcDecl == nil {
+			if fd := findFunc(file, funcName); fd != nil {
+				r.file = file
+				r.funcDecl = fd
+			}
+		}
 		r.files = append(r.files, file)
-	}
-	r.file, r.funcDecl = findFunc(r.files, funcName)
-	if r.file == nil {
-		return fmt.Errorf("top-level func %s does not exist", funcName)
-	}
-	tfnames := make([]string, 0, len(r.files)+1)
-	for _, file := range r.files {
-		fname := r.fset.Position(file.Pos()).Filename
-		tfname := filepath.Join(tdir, filepath.Base(fname))
+		tfname := filepath.Join(tdir, filepath.Base(fpath))
 		f, err := os.Create(tfname)
 		if err != nil {
 			return nil
@@ -123,6 +122,9 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 			return err
 		}
 		tfnames = append(tfnames, tfname)
+	}
+	if r.funcDecl == nil {
+		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
 	mfname := filepath.Join(tdir, mainFile)
 	mf, err := os.Create(mfname)
@@ -202,11 +204,11 @@ func (r *reducer) okChange() bool {
 	if err := rawPrinter.Fprint(r.dstBuf, r.fset, r.file); err != nil {
 		return false
 	}
-	if s := r.dstBuf.String(); r.tried[s] {
+	newSrc := r.dstBuf.String()
+	if r.tried[newSrc] {
 		return false
-	} else {
-		r.tried[s] = true
 	}
+	r.tried[newSrc] = true
 	if err := r.dstFile.Truncate(0); err != nil {
 		return false
 	}
@@ -257,16 +259,14 @@ func (r *reducer) fillUses() {
 	}
 }
 
-func findFunc(files []*ast.File, name string) (*ast.File, *ast.FuncDecl) {
-	for _, file := range files {
-		for _, decl := range file.Decls {
-			fd, ok := decl.(*ast.FuncDecl)
-			if ok && fd.Name.Name == name {
-				return file, fd
-			}
+func findFunc(file *ast.File, name string) *ast.FuncDecl {
+	for _, decl := range file.Decls {
+		fd, ok := decl.(*ast.FuncDecl)
+		if ok && fd.Name.Name == name {
+			return fd
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 func delFunc(file *ast.File, name string) *ast.FuncDecl {
