@@ -106,7 +106,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		tfname := filepath.Join(tdir, filepath.Base(fpath))
 		f, err := os.Create(tfname)
 		if err != nil {
-			return nil
+			return err
 		}
 		if fd := delFunc(file, "main"); fd != nil && file == r.file {
 			r.origMain = fd
