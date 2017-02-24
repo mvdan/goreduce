@@ -82,7 +82,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		return err
 	}
 	r.fset = token.NewFileSet()
-	pkgs, err := parser.ParseDir(r.fset, r.dir, nil, 0)
+	pkgs, err := parser.ParseDir(r.fset, r.dir, nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,6 @@
 package crasher
 
+// Crasher just crashes.
 func Crasher() {
 	bs := []bool{}
 	_ = bs[0]

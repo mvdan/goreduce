@@ -5,6 +5,7 @@ import (
 	foo "sync"
 )
 
+// Crasher just crashes.
 func Crasher() {
 	b := false
 	bs := []bool{b}
