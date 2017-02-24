@@ -12,10 +12,8 @@ import (
 	"testing"
 )
 
-var dirsGlob = filepath.Join("testdata", "*")
-
 func TestReductions(t *testing.T) {
-	paths, err := filepath.Glob(dirsGlob)
+	paths, err := filepath.Glob(filepath.Join("testdata", "*"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,8 +45,8 @@ func testReduction(name string) func(*testing.T) {
 		if name == "reduce-lit-arith" {
 			fname = "crasher"
 		}
-		var b bytes.Buffer
-		if err := reduce(impPath, fname, match, &b); err != nil {
+		var buf bytes.Buffer
+		if err := reduce(impPath, fname, match, &buf); err != nil {
 			t.Fatal(err)
 		}
 		got := readFile(t, dir, "src.go")
@@ -56,7 +54,7 @@ func testReduction(name string) func(*testing.T) {
 			t.Fatalf("unexpected program output\nwant:\n%sgot:\n%s",
 				want, got)
 		}
-		gotLog := b.String()
+		gotLog := buf.String()
 		wantLog := readFile(t, dir, "log")
 		if wantLog != gotLog {
 			t.Fatalf("unexpected log output\nwant:\n%sgot:\n%s",
@@ -74,7 +72,7 @@ func BenchmarkReduce(b *testing.B) {
 	if err := os.Chdir(dir); err != nil {
 		b.Fatal(err)
 	}
-	content := []byte(`package crasher
+	orig := []byte(`package crasher
 
 import "sync"
 
@@ -84,7 +82,7 @@ func Crasher() {
 	println(a[0])
 }`)
 	for i := 0; i < b.N; i++ {
-		if err := ioutil.WriteFile("src.go", content, 0644); err != nil {
+		if err := ioutil.WriteFile("src.go", orig, 0644); err != nil {
 			b.Fatal(err)
 		}
 		err := reduce(".", "Crasher", "index out of range", ioutil.Discard)
