@@ -183,6 +183,8 @@ func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 		l = append(l, orig[i+1:]...)
 		*list = l
 		if r.okChange() {
+			r.mergeLines(bl.Pos(), bl.List[0].Pos())
+			r.mergeLines(bl.List[len(bl.List)-1].End(), bl.End())
 			r.logChange(stmt, "block inlined")
 			return
 		}
