@@ -138,6 +138,7 @@ stmtLoop:
 		copy(l[i:], orig[i+1:])
 		*list = l
 		if r.okChange() {
+			r.mergeLinesNode(stmt)
 			r.logChange(stmt, "%s removed", nodeType(stmt))
 			return
 		}
@@ -152,6 +153,20 @@ func nodeType(n ast.Node) string {
 		s = s[i+1:]
 	}
 	return s
+}
+
+func (r *reducer) mergeLinesNode(node ast.Node) {
+	r.mergeLines(node.Pos(), node.End()+1)
+}
+
+func (r *reducer) mergeLines(start, end token.Pos) {
+	file := r.fset.File(start)
+	l1 := file.Line(start)
+	l2 := file.Line(end)
+	for l1 < l2 {
+		file.MergeLine(l1)
+		l1++
+	}
 }
 
 // TODO: name collisions, move to cleanup once 100% sure it will work
