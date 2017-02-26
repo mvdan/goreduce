@@ -284,16 +284,14 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 			}
 			obj := r.info.Uses[id]
 			if obj == nil {
-				return true
+				return false
 			}
 			if num, e := remaining[obj]; e {
 				if num == 1 {
 					objs = append(objs, obj)
-				} else {
-					remaining[obj]--
 				}
-			}
-			if num, e := r.numUses[obj]; e {
+				remaining[obj]--
+			} else if num, e := r.numUses[obj]; e {
 				if num == 1 {
 					objs = append(objs, obj)
 				} else {
