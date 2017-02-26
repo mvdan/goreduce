@@ -1,16 +1,16 @@
 package crasher
 
 import (
-	"os"
-	foo "sync"
+	"unsafe"
+	foo "errors"
 )
 
 // Crasher just crashes.
 func Crasher() {
 	b := false
 	bs := []bool{b}
-	var f *os.File
-	_, _ = foo.Once{}, foo.Once{}
-	println(f)
+	var p unsafe.Pointer
+	_, _ = foo.New, foo.New("")
+	println(p)
 	_ = false || bs[12345678987654321]
 }
