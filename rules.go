@@ -114,7 +114,7 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 		switch x := stmt.(type) {
 		case *ast.DeclStmt:
 			gd := x.Decl.(*ast.GenDecl)
-			if !allEmptyNames(gd) { // var _ = ...
+			if !allEmptyNames(gd) {
 				continue
 			}
 		case *ast.AssignStmt:
@@ -175,7 +175,7 @@ func (r *reducer) mergeLines(start, end token.Pos) {
 	}
 }
 
-// TODO: name collisions, move to cleanup once 100% sure it will work
+// TODO: name collisions
 func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 	orig := *list
 	for i, stmt := range orig {

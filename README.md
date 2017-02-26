@@ -57,10 +57,5 @@ expression still match, it's left in place.
 | Bypass star          | `*a`                    | `a`           |
 | Bypass paren         | `(a)`                   | `a`           |
 
-### Clean-up stage
-
-Before any rules are tried, and after any valid change is found, the
-tool does some cleaning up to avoid soft compiler errors and speed up
-the process.
-
-* Remove unused imports
+Note that extra changes may be needed along with any of these to appease
+the Go compiler, since it doesn't like unused variables and imports.
