@@ -91,3 +91,23 @@ func Crasher() {
 		}
 	}
 }
+
+func TestReduceErrs(t *testing.T) {
+	t.Parallel()
+	tests := [...]struct {
+		dir, funcName, match string
+		errCont              string
+	}{
+		{"missing-dir", "fn", "[", "missing closing ]"},
+		{"missing-dir", "fn", ".", "no such file"},
+		{"testdata/remove-stmt", "missing-fn", ".", "top-level func"},
+		{"testdata/remove-stmt", "Crasher", "no-match", "does not match"},
+	}
+	for _, tc := range tests {
+		err := reduce(tc.dir, tc.funcName, tc.match, ioutil.Discard)
+		if err == nil || !strings.Contains(err.Error(), tc.errCont) {
+			t.Fatalf("wanted error conatining %q, got: %v",
+				tc.errCont, err)
+		}
+	}
+}
