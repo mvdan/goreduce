@@ -24,8 +24,8 @@ func Crasher() {
 
 ```
 func Crasher() {
-        a := []int{1, 2, 3}
-        println(a[10])
+        a := []int{}
+        println(a[0])
 }
 ```
 
