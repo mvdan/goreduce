@@ -184,20 +184,13 @@ func (r *reducer) checkRun() error {
 	return nil
 }
 
-// panicOnSoftErr will make the tool panic if we get stuck because of a
-// soft type-checking error that we should have avoided. Leaving this on
-// would slow the tool down a bit.
-const panicOnSoftErr = false
-
 func (r *reducer) okChange() bool {
 	if r.didChange {
 		return false
 	}
-	if panicOnSoftErr {
-		if _, err := r.tconf.Check(r.dir, r.fset, r.files, nil); err != nil {
-			if terr, ok := err.(types.Error); ok && terr.Soft {
-				panic("unexpected go/types soft error: " + terr.Msg)
-			}
+	if _, err := r.tconf.Check(r.dir, r.fset, r.files, nil); err != nil {
+		if terr, ok := err.(types.Error); ok && terr.Soft {
+			println("unexpected go/types soft error: " + terr.Msg)
 		}
 	}
 	r.dstBuf.Reset()
