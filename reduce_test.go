@@ -54,6 +54,17 @@ func testReduction(name string) func(*testing.T) {
 			t.Fatalf("unexpected program output\nwant:\n%sgot:\n%s",
 				want, got)
 		}
+		// remove testdata/<dir>/ bit
+		rawLog := buf.String()
+		buf.Reset()
+		for _, line := range strings.Split(rawLog, "\n") {
+			if line == "" {
+				break
+			}
+			line = strings.TrimPrefix(line, dir+string(filepath.Separator))
+			buf.WriteString(line)
+			buf.WriteByte('\n')
+		}
 		gotLog := buf.String()
 		wantLog := readFile(t, dir, "log")
 		if wantLog != gotLog {

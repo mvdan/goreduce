@@ -1,5 +1,5 @@
-testdata/reduce-lit-arith/src.go:3: "foo" -> ""
-testdata/reduce-lit-arith/src.go:6: (a) -> a
-testdata/reduce-lit-arith/src.go:6: a + b -> a
-testdata/reduce-lit-arith/src.go:6: +a -> a
-testdata/reduce-lit-arith/src.go:6: 1 -> 0
+src.go:3: "foo" -> ""
+src.go:6: (a) -> a
+src.go:6: a + b -> a
+src.go:6: +a -> a
+src.go:6: 1 -> 0
