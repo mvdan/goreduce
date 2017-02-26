@@ -109,24 +109,13 @@ func (r *reducer) reduceNode(v interface{}) bool {
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	orig := *list
 	l := make([]ast.Stmt, len(orig)-1)
-stmtLoop:
 	for i, stmt := range orig {
 		// discard those that will likely break compilation
 		switch x := stmt.(type) {
 		case *ast.DeclStmt:
-			// TODO: support more complex decls
 			gd := x.Decl.(*ast.GenDecl)
-			if len(gd.Specs) != 1 {
+			if !allEmptyNames(gd) { // var _ = ...
 				continue
-			}
-			vs, ok := gd.Specs[0].(*ast.ValueSpec)
-			if !ok {
-				continue
-			}
-			for _, name := range vs.Names {
-				if name.Name != "_" {
-					continue stmtLoop
-				}
 			}
 		case *ast.AssignStmt:
 			if x.Tok == token.DEFINE { // :=
@@ -145,6 +134,23 @@ stmtLoop:
 		undo()
 	}
 	*list = orig
+}
+
+// allEmptyNames reports whether all delcs in a GenDecl are vars or
+// consts with empty (underscore) names.
+func allEmptyNames(gd *ast.GenDecl) bool {
+	for _, spec := range gd.Specs {
+		vs, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			return false
+		}
+		for _, name := range vs.Names {
+			if name.Name != "_" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func nodeType(n ast.Node) string {
