@@ -41,6 +41,42 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			}
 			undo()
 		}
+	case *ast.Ident:
+		obj := r.info.Uses[x]
+		if obj == nil {
+			break
+		}
+		bt, ok := obj.Type().(*types.Basic)
+		if !ok {
+			break
+		}
+		if bt.Info()&types.IsUntyped == 0 {
+			break
+		}
+		var expr ast.Expr
+		ast.Inspect(r.file, func(node ast.Node) bool {
+			ds, ok := node.(*ast.DeclStmt)
+			if !ok {
+				return true
+			}
+			gd := ds.Decl.(*ast.GenDecl)
+			if gd.Tok != token.CONST {
+				return false
+			}
+			for _, spec := range gd.Specs {
+				vs := spec.(*ast.ValueSpec)
+				for i, name := range vs.Names {
+					if r.info.Defs[name] == obj {
+						expr = vs.Values[i]
+						return false
+					}
+				}
+			}
+			return true
+		})
+		if expr != nil && r.changeExpr(expr) {
+			r.logChange(x, "const inlined")
+		}
 	case *ast.BasicLit:
 		r.reduceLit(x)
 	case *ast.SliceExpr:
@@ -114,7 +150,7 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 		switch x := stmt.(type) {
 		case *ast.DeclStmt:
 			gd := x.Decl.(*ast.GenDecl)
-			if !allEmptyNames(gd) {
+			if !r.allUnusedNames(gd) {
 				continue
 			}
 		case *ast.AssignStmt:
@@ -136,16 +172,16 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	*list = orig
 }
 
-// allEmptyNames reports whether all delcs in a GenDecl are vars or
-// consts with empty (underscore) names.
-func allEmptyNames(gd *ast.GenDecl) bool {
+// allUnusedNames reports whether all delcs in a GenDecl are vars or
+// consts with empty (underscore) or unused names.
+func (r *reducer) allUnusedNames(gd *ast.GenDecl) bool {
 	for _, spec := range gd.Specs {
 		vs, ok := spec.(*ast.ValueSpec)
 		if !ok {
 			return false
 		}
 		for _, name := range vs.Names {
-			if name.Name != "_" {
+			if r.numUses[r.info.Defs[name]] > 0 {
 				return false
 			}
 		}
@@ -274,8 +310,7 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 	remaining := make(map[types.Object]int)
 	for _, node := range nodes {
 		if node == nil {
-			// for convenience
-			continue
+			continue // for convenience
 		}
 		ast.Inspect(node, func(node ast.Node) bool {
 			id, ok := node.(*ast.Ident)

@@ -1,5 +1,7 @@
 src.go:3: "foo" -> ""
-src.go:6: (a) -> a
-src.go:6: a + b -> a
-src.go:6: +a -> a
 src.go:6: 1 -> 0
+src.go:7: (a) -> a
+src.go:7: a + b -> a
+src.go:7: +a -> a
+src.go:7: const inlined
+src.go:6: DeclStmt removed

@@ -3,7 +3,8 @@ package main
 var a = "foo"
 
 func crasher() {
-	println(a[(+1 + b)])
+	const b = 1
+	println(a[(+b + c)])
 }
 
 func main() {
