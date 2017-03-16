@@ -46,6 +46,9 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if obj == nil { // decl, not use
 			break
 		}
+		if len(r.useIdents[obj]) > 1 {
+			break
+		}
 		bt, ok := obj.Type().(*types.Basic)
 		if !ok || bt.Info()&types.IsUntyped == 0 {
 			break
