@@ -181,7 +181,7 @@ func (r *reducer) allUnusedNames(gd *ast.GenDecl) bool {
 			return false
 		}
 		for _, name := range vs.Names {
-			if r.numUses[r.info.Defs[name]] > 0 {
+			if len(r.useIdents[r.info.Defs[name]]) > 0 {
 				return false
 			}
 		}
@@ -326,11 +326,11 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 					objs = append(objs, obj)
 				}
 				remaining[obj]--
-			} else if num, e := r.numUses[obj]; e {
-				if num == 1 {
+			} else if ids, e := r.useIdents[obj]; e {
+				if len(ids) == 1 {
 					objs = append(objs, obj)
 				} else {
-					remaining[obj] = num - 1
+					remaining[obj] = len(ids) - 1
 				}
 			}
 			return true

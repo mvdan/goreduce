@@ -49,7 +49,7 @@ type reducer struct {
 	tconf types.Config
 	info  *types.Info
 
-	numUses map[types.Object]int
+	useIdents map[types.Object][]*ast.Ident
 
 	outBin  string
 	goArgs  []string
@@ -239,15 +239,15 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 }
 
 func (r *reducer) fillUses() {
-	r.numUses = make(map[types.Object]int)
-	for _, obj := range r.info.Uses {
+	r.useIdents = make(map[types.Object][]*ast.Ident)
+	for id, obj := range r.info.Uses {
 		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != "main" {
 			// builtin or declared outside of our pkg
 			continue
 		}
 		switch obj.(type) {
 		case *types.PkgName, *types.Var:
-			r.numUses[obj]++
+			r.useIdents[obj] = append(r.useIdents[obj], id)
 		}
 	}
 }
