@@ -43,33 +43,23 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	case *ast.Ident:
 		obj := r.info.Uses[x]
-		if obj == nil {
+		if obj == nil { // decl, not use
 			break
 		}
 		bt, ok := obj.Type().(*types.Basic)
-		if !ok {
-			break
-		}
-		if bt.Info()&types.IsUntyped == 0 {
+		if !ok || bt.Info()&types.IsUntyped == 0 {
 			break
 		}
 		var expr ast.Expr
 		ast.Inspect(r.file, func(node ast.Node) bool {
-			ds, ok := node.(*ast.DeclStmt)
+			vs, ok := node.(*ast.ValueSpec)
 			if !ok {
 				return true
 			}
-			gd := ds.Decl.(*ast.GenDecl)
-			if gd.Tok != token.CONST {
-				return false
-			}
-			for _, spec := range gd.Specs {
-				vs := spec.(*ast.ValueSpec)
-				for i, name := range vs.Names {
-					if r.info.Defs[name] == obj {
-						expr = vs.Values[i]
-						return false
-					}
+			for i, name := range vs.Names {
+				if r.info.Defs[name] == obj {
+					expr = vs.Values[i]
+					return false
 				}
 			}
 			return true
