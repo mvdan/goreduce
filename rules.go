@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -22,6 +23,20 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	}
 	switch x := v.(type) {
 	case *ast.ImportSpec:
+		name := ""
+		if x.Name != nil {
+			name = x.Name.Name
+		}
+		if name != "_" {
+			return false
+		}
+		path, _ := strconv.Unquote(x.Path.Value)
+		astutil.DeleteNamedImport(r.fset, r.file, name, path)
+		if r.okChange() {
+			r.logChange(x, "removed import")
+		} else {
+			astutil.AddNamedImport(r.fset, r.file, name, path)
+		}
 		return false
 	case *[]ast.Stmt:
 		r.removeStmt(x)
@@ -133,6 +148,14 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	}
 	return true
+}
+
+func basicLitEqualsString(bl *ast.BasicLit, s string) bool {
+	if bl.Kind != token.STRING {
+		return false
+	}
+	unq, _ := strconv.Unquote(bl.Value)
+	return unq == s
 }
 
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
@@ -276,7 +299,8 @@ func (r *reducer) afterDeleteExprs(exprs []ast.Expr) (undo func()) {
 
 func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 	type redoImp struct {
-		name, path string
+		imp  *ast.ImportSpec
+		name string
 	}
 	var imps []redoImp
 	type redoVar struct {
@@ -295,8 +319,27 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 				name = ""
 			}
 			path := x.Imported().Path()
-			astutil.DeleteNamedImport(r.fset, r.file, name, path)
-			imps = append(imps, redoImp{name, path})
+			ast.Inspect(r.file, func(node ast.Node) bool {
+				imp, ok := node.(*ast.ImportSpec)
+				if !ok {
+					return true
+				}
+				if imp.Name != nil && imp.Name.Name != name {
+					return true
+				}
+				if !basicLitEqualsString(imp.Path, path) {
+					return true
+				}
+				imps = append(imps, redoImp{
+					imp:  imp,
+					name: name,
+				})
+				imp.Name = &ast.Ident{
+					NamePos: imp.Path.Pos(),
+					Name:    "_",
+				}
+				return true
+			})
 		case *types.Var:
 			ast.Inspect(r.file, func(node ast.Node) bool {
 				switch x := node.(type) {
@@ -327,7 +370,7 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 	}
 	return func() {
 		for _, imp := range imps {
-			astutil.AddNamedImport(r.fset, r.file, imp.name, imp.path)
+			imp.imp.Name.Name = imp.name
 		}
 		for _, rvar := range vars {
 			rvar.id.Name = rvar.name

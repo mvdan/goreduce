@@ -1,6 +1,8 @@
 src.go:13: AssignStmt removed
+src.go:5: removed import
 src.go:14: ExprStmt removed
 src.go:12: DeclStmt removed
+src.go:4: removed import
 src.go:11: []T{a, b} -> []T{}
 src.go:10: AssignStmt removed
 src.go:15: a || b -> b
