@@ -245,10 +245,7 @@ func (r *reducer) fillUses() {
 			// builtin or declared outside of our pkg
 			continue
 		}
-		switch obj.(type) {
-		case *types.PkgName, *types.Var:
-			r.useIdents[obj] = append(r.useIdents[obj], id)
-		}
+		r.useIdents[obj] = append(r.useIdents[obj], id)
 	}
 }
 
