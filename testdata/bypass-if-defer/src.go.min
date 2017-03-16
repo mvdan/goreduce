@@ -1,5 +1,6 @@
 package crasher
 
-func Crasher() {
-	panic("panic message")
+func Crasher() string {
+	msg_ := "panic message"
+	panic(msg_)
 }

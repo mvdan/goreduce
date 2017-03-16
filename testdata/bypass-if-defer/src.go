@@ -1,8 +1,10 @@
 package crasher
 
-func Crasher() {
-	a := true
-	if a {
-		defer panic("panic message")
+func Crasher() string {
+	msg := "wrong message"
+	if true {
+		msg := "panic message"
+		defer panic(msg)
 	}
+	return msg
 }

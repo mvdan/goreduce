@@ -211,13 +211,49 @@ func (r *reducer) mergeLines(start, end token.Pos) {
 	}
 }
 
-// TODO: name collisions
 func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 	orig := *list
+	type undoIdent struct {
+		id   *ast.Ident
+		name string
+	}
+	var undoIdents []undoIdent
 	for i, stmt := range orig {
 		bl, ok := stmt.(*ast.BlockStmt)
 		if !ok {
 			continue
+		}
+		// TODO: handle more complex name collisions,
+		// e.g. doesCollide, doesNot := ...
+		for _, stmt := range bl.List {
+			switch x := stmt.(type) {
+			case *ast.AssignStmt:
+				if x.Tok == token.ASSIGN || len(x.Lhs) != 1 {
+					break
+				}
+				id, ok := x.Lhs[0].(*ast.Ident)
+				if !ok {
+					break
+				}
+				obj := r.info.Defs[id]
+				scope := obj.Parent()
+				if scope.Parent().Lookup(id.Name) == nil {
+					break
+				}
+				origName := id.Name
+				newName := id.Name + "_"
+				for scope.Lookup(newName) != nil {
+					newName += "_"
+				}
+				id.Name = newName
+				for _, id := range r.useIdents[obj] {
+					undoIdents = append(undoIdents, undoIdent{
+						id:   id,
+						name: origName,
+					})
+					id.Name = newName
+				}
+			}
 		}
 		var l []ast.Stmt
 		l = append(l, orig[:i]...)
@@ -230,6 +266,9 @@ func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 			r.logChange(stmt, "block inlined")
 			return
 		}
+	}
+	for _, ui := range undoIdents {
+		ui.id.Name = ui.name
 	}
 	*list = orig
 }
