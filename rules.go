@@ -29,14 +29,14 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	case *ast.IfStmt:
 		undo := r.afterDelete(x.Init, x.Cond, x.Else)
 		if r.changeStmt(x.Body) {
-			r.logChange(x, "if a { b } -> b")
+			r.logChange(x, "if a { b } -> { b }")
 			break
 		}
 		undo()
 		if x.Else != nil {
 			undo := r.afterDelete(x.Init, x.Cond, x.Body)
 			if r.changeStmt(x.Else) {
-				r.logChange(x, "if a { ... } else { c } -> c")
+				r.logChange(x, "if a {...} else c -> c")
 				break
 			}
 			undo()

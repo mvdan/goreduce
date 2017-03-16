@@ -1,4 +1,4 @@
-src.go:6: if a { ... } else { c } -> c
+src.go:6: if a {...} else c -> c
 src.go:4: AssignStmt removed
 src.go:5: AssignStmt removed
 src.go:8: block inlined

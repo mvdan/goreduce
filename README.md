@@ -41,21 +41,21 @@ func Crasher() {
 These are tested one at a time. If any of them makes the regular
 expression still match, it's left in place.
 
-| Summary              | Before                  | After         |
-| -------------------- | ----------------------- | ------------- |
-| Remove statement     | `a; b`                  | `a` or `b`    |
-| Inline block         | `{ a }`                 | `a`           |
-| Bypass to if/else    | `if a { b } else { c }` | `b` or `c`    |
-| Bypass to defer call | `defer a()`             | `a()`         |
-| Bypass to go call    | `go a()`                | `a()`         |
-| Zero lit values      | `123, "foo"`            | `0, ""`       |
-| Empty composite lits | `T{a, b}`               | `T{}`         |
-| Reduce indexes       | `a[1]`                  | `a`           |
-| Reduce slices        | `a[:2]`                 | `a` or `a[:]` |
-| Remove binary parts  | `a + b`, `a || b`       | `a` or `b`    |
-| Remove unary op      | `-a`, `!a`              | `a`           |
-| Bypass star          | `*a`                    | `a`           |
-| Bypass paren         | `(a)`                   | `a`           |
+| Summary              | Before              | After         |
+| -------------------- | ------------------- | ------------- |
+| Remove statement     | `a; b`              | `a` or `b`    |
+| Inline block         | `{ a }`             | `a`           |
+| Bypass to if/else    | `if a { b } else c` | `b` or `c`    |
+| Bypass to defer call | `defer a()`         | `a()`         |
+| Bypass to go call    | `go a()`            | `a()`         |
+| Zero lit values      | `123, "foo"`        | `0, ""`       |
+| Empty composite lits | `T{a, b}`           | `T{}`         |
+| Reduce indexes       | `a[1]`              | `a`           |
+| Reduce slices        | `a[:2]`             | `a` or `a[:]` |
+| Remove binary parts  | `a + b`, `a || b`   | `a` or `b`    |
+| Remove unary op      | `-a`, `!a`          | `a`           |
+| Bypass star          | `*a`                | `a`           |
+| Bypass paren         | `(a)`               | `a`           |
 
 Note that extra changes may be needed along with any of these to appease
 the Go compiler, since it doesn't like unused variables and imports.
