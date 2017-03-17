@@ -192,6 +192,7 @@ func (r *reducer) okChange() bool {
 		if terr, ok := err.(types.Error); ok && terr.Soft {
 			println("unexpected go/types soft error: " + terr.Msg)
 		}
+		return false
 	}
 	r.dstBuf.Reset()
 	if err := rawPrinter.Fprint(r.dstBuf, r.fset, r.file); err != nil {
