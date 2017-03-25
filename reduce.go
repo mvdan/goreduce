@@ -47,7 +47,6 @@ type reducer struct {
 	origMain *ast.FuncDecl
 
 	tconf types.Config
-	terr  error
 	info  *types.Info
 
 	useIdents map[types.Object][]*ast.Ident
@@ -84,8 +83,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 			// don't stop type-checking on soft errors
 			return
 		}
-		r.terr = err
-		panic(nil)
+		panic("types.Check should not error here: " + err.Error())
 	}
 	if r.matchRe, err = regexp.Compile(match); err != nil {
 		return err
@@ -229,10 +227,10 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 		Uses: make(map[*ast.Ident]types.Object),
 	}
 	for {
-		if _, err := r.tconf.Check(r.dir, r.fset, r.files, r.info); r.terr != nil {
-			panic("types.Check should not error here: " + err.Error())
-		}
+		// Update type info after the AST changes
+		r.tconf.Check(r.dir, r.fset, r.files, r.info)
 		r.fillUses()
+
 		r.didChange = false
 		r.walk(r.file, r.reduceNode)
 		if !r.didChange {
