@@ -47,6 +47,7 @@ type reducer struct {
 	origMain *ast.FuncDecl
 
 	tconf types.Config
+	terr  error
 	info  *types.Info
 
 	useIdents map[types.Object][]*ast.Ident
@@ -78,6 +79,14 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	}
 	defer os.RemoveAll(tdir)
 	r.tconf.Importer = importer.Default()
+	r.tconf.Error = func(err error) {
+		if terr, ok := err.(types.Error); ok && terr.Soft {
+			// don't stop type-checking on soft errors
+			return
+		}
+		r.terr = err
+		panic(nil)
+	}
 	if r.matchRe, err = regexp.Compile(match); err != nil {
 		return err
 	}
@@ -188,12 +197,6 @@ func (r *reducer) okChange() bool {
 	if r.didChange {
 		return false
 	}
-	if _, err := r.tconf.Check(r.dir, r.fset, r.files, nil); err != nil {
-		if terr, ok := err.(types.Error); ok && terr.Soft {
-			println("unexpected go/types soft error: " + terr.Msg)
-		}
-		return false
-	}
 	r.dstBuf.Reset()
 	if err := rawPrinter.Fprint(r.dstBuf, r.fset, r.file); err != nil {
 		return false
@@ -226,8 +229,8 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 		Uses: make(map[*ast.Ident]types.Object),
 	}
 	for {
-		if _, err := r.tconf.Check(r.dir, r.fset, r.files, r.info); err != nil {
-			panic("types.Check should not error here")
+		if _, err := r.tconf.Check(r.dir, r.fset, r.files, r.info); r.terr != nil {
+			panic("types.Check should not error here: " + err.Error())
 		}
 		r.fillUses()
 		r.didChange = false
