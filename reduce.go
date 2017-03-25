@@ -183,9 +183,9 @@ func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 }
 
 func (r *reducer) checkRun() error {
-	out, err := r.buildAndRun()
-	if err != nil {
-		return err
+	out := r.buildAndRun()
+	if out == nil {
+		return fmt.Errorf("expected an error to occur")
 	}
 	if !r.matchRe.Match(out) {
 		return fmt.Errorf("error does not match:\n%s", string(out))
@@ -274,19 +274,19 @@ func delFunc(file *ast.File, name string) *ast.FuncDecl {
 	return nil
 }
 
-func (r *reducer) buildAndRun() ([]byte, error) {
+func (r *reducer) buildAndRun() []byte {
 	cmd := exec.Command("go", r.goArgs...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			return out, nil
+			return out
 		}
-		return nil, err
+		panic("could not call go build: " + err.Error())
 	}
 	if out, err := exec.Command(r.outBin).CombinedOutput(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			return out, nil
+			return out
 		}
-		return nil, err
+		panic("could not call binary: " + err.Error())
 	}
-	return nil, fmt.Errorf("expected an error to occur")
+	return nil
 }
