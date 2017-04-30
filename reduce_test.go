@@ -40,13 +40,10 @@ func testReduction(name string) func(*testing.T) {
 		defer ioutil.WriteFile(filepath.Join(dir, "src.go"), orig, 0644)
 		want := readFile(t, dir, "src.go.min")
 		match := strings.TrimRight(readFile(t, dir, "match"), "\n")
+		call := strings.TrimRight(readFile(t, dir, "call"), "\n")
 		impPath := "./testdata/" + name
-		fname := "Crasher"
-		if name == "reduce-lit-arith" {
-			fname = "crasher"
-		}
 		var buf bytes.Buffer
-		if err := reduce(impPath, fname, match, &buf); err != nil {
+		if err := reduce(impPath, call, match, &buf); err != nil {
 			t.Fatal(err)
 		}
 		got := readFile(t, dir, "src.go")

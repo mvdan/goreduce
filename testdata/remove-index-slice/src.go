@@ -1,6 +1,6 @@
-package crasher
+package main
 
-func Crasher() {
+func main() {
 	var a *[][]int
 	println((*a)[1:][0])
 }

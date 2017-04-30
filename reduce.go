@@ -43,8 +43,6 @@ type reducer struct {
 	pkg      *ast.Package
 	files    []*ast.File
 	file     *ast.File
-	funcDecl *ast.FuncDecl
-	origMain *ast.FuncDecl
 
 	tconf types.Config
 	info  *types.Info
@@ -102,11 +100,13 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	r.origFset = token.NewFileSet()
 	parser.ParseDir(r.origFset, r.dir, nil, 0)
 	tfnames := make([]string, 0, len(r.pkg.Files)+1)
+	foundFunc := false
+	var origMain *ast.FuncDecl
 	for fpath, file := range r.pkg.Files {
-		if r.funcDecl == nil {
+		if !foundFunc {
 			if fd := findFunc(file, funcName); fd != nil {
 				r.file = file
-				r.funcDecl = fd
+				foundFunc = true
 			}
 		}
 		r.files = append(r.files, file)
@@ -115,10 +115,12 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		if err != nil {
 			return err
 		}
-		if fd := delFunc(file, "main"); fd != nil && file == r.file {
-			r.origMain = fd
+		if funcName != "main" {
+			if fd := delFunc(file, "main"); fd != nil && file == r.file {
+				origMain = fd
+			}
+			file.Name.Name = "main"
 		}
-		file.Name.Name = "main"
 		if err := rawPrinter.Fprint(f, r.fset, file); err != nil {
 			return err
 		}
@@ -130,21 +132,23 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		}
 		tfnames = append(tfnames, tfname)
 	}
-	if r.funcDecl == nil {
+	if funcName != "" && !foundFunc {
 		return fmt.Errorf("top-level func %s does not exist", funcName)
 	}
 	mfname := filepath.Join(tdir, mainFile)
-	mf, err := os.Create(mfname)
-	if err != nil {
-		return err
+	if funcName != "main" {
+		mf, err := os.Create(mfname)
+		if err != nil {
+			return err
+		}
+		if err := mainTmpl.Execute(mf, funcName); err != nil {
+			return err
+		}
+		if err := mf.Close(); err != nil {
+			return err
+		}
+		tfnames = append(tfnames, mfname)
 	}
-	if err := mainTmpl.Execute(mf, funcName); err != nil {
-		return err
-	}
-	if err := mf.Close(); err != nil {
-		return err
-	}
-	tfnames = append(tfnames, mfname)
 	r.outBin = filepath.Join(tdir, "bin")
 	r.goArgs = []string{"build", "-o", r.outBin}
 	r.goArgs = append(r.goArgs, buildFlags...)
@@ -163,8 +167,8 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		return err
 	}
 	r.file.Name.Name = r.pkg.Name
-	if r.origMain != nil {
-		r.file.Decls = append(r.file.Decls, r.origMain)
+	if origMain != nil {
+		r.file.Decls = append(r.file.Decls, origMain)
 	}
 	if err := printer.Fprint(f, r.fset, r.file); err != nil {
 		return err
