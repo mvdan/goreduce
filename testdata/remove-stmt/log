@@ -7,3 +7,4 @@ src.go:11: []T{a, b} -> []T{} (2 tries)
 src.go:10: AssignStmt removed (1 tries)
 src.go:15: a || b -> b (3 tries)
 src.go:15: 1234567... -> 0 (3 tries)
+gave up after 2 final tries

@@ -241,6 +241,9 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 		r.didChange = false
 		r.walk(r.file, r.reduceNode)
 		if !r.didChange {
+			if *verbose {
+				fmt.Fprintf(r.logOut, "gave up after %d final tries\n", r.tries)
+			}
 			return
 		}
 		anyChanges = true
