@@ -1,5 +1,5 @@
-src.go:5: if a { b } -> { b }
-src.go:5: block inlined
-src.go:7: defer a() -> a()
-src.go:9: ReturnStmt removed
-src.go:4: AssignStmt removed
+src.go:5: if a { b } -> { b } (3 tries)
+src.go:5: block inlined (3 tries)
+src.go:7: defer a() -> a() (3 tries)
+src.go:9: ReturnStmt removed (2 tries)
+src.go:4: AssignStmt removed (1 tries)

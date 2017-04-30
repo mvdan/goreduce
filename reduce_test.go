@@ -5,12 +5,15 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+var write = flag.Bool("w", false, "write test outputs")
 
 func TestReductions(t *testing.T) {
 	paths, err := filepath.Glob(filepath.Join("testdata", "*"))
@@ -30,6 +33,13 @@ func readFile(t testing.TB, dir, path string) string {
 		t.Fatal(err)
 	}
 	return string(bs)
+}
+
+func writeFile(t testing.TB, dir, path, cont string) {
+	err := ioutil.WriteFile(filepath.Join(dir, path), []byte(cont), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func testReduction(name string) func(*testing.T) {
@@ -65,8 +75,12 @@ func testReduction(name string) func(*testing.T) {
 		gotLog := buf.String()
 		wantLog := readFile(t, dir, "log")
 		if wantLog != gotLog {
-			t.Fatalf("unexpected log output\nwant:\n%sgot:\n%s",
-				wantLog, gotLog)
+			if *write {
+				writeFile(t, dir, "log", gotLog)
+			} else {
+				t.Fatalf("unexpected log output\nwant:\n%sgot:\n%s",
+					wantLog, gotLog)
+			}
 		}
 	}
 }

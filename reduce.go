@@ -54,6 +54,7 @@ type reducer struct {
 	dstFile *os.File
 	dstBuf  *bytes.Buffer
 
+	tries     int
 	didChange bool
 
 	tried map[string]bool
@@ -179,9 +180,10 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
 		pos := r.origFset.Position(node.Pos())
-		fmt.Fprintf(r.logOut, "%s:%d: %s\n", pos.Filename, pos.Line,
-			fmt.Sprintf(format, a...))
+		fmt.Fprintf(r.logOut, "%s:%d: %s (%d tries)\n",
+			pos.Filename, pos.Line, fmt.Sprintf(format, a...), r.tries)
 	}
+	r.tries = 0
 }
 
 func (r *reducer) checkRun() error {
@@ -199,6 +201,7 @@ func (r *reducer) okChange() bool {
 	if r.didChange {
 		return false
 	}
+	r.tries++
 	r.dstBuf.Reset()
 	if err := rawPrinter.Fprint(r.dstBuf, r.fset, r.file); err != nil {
 		return false
