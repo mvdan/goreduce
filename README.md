@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/mvdan/goreduce.svg?branch=master)](https://travis-ci.org/mvdan/goreduce)
 
-Reduce a function to its simplest form as long as it produces a compiler
+Reduce a program to its simplest form as long as it produces a compiler
 error or any output (such as a panic) matching a regular expression.
 
 	go get -u github.com/mvdan/goreduce
@@ -29,6 +29,10 @@ func Crasher() {
 }
 ```
 
+And for compiler crashes:
+
+	goreduce -match 'internal compiler error' . -gcflags '-c=2'
+
 ### Design
 
 * The tool should be reproducible, giving the same output for an input
@@ -52,10 +56,7 @@ expression still match, it's left in place.
 | Empty composite lits | `T{a, b}`           | `T{}`         |
 | Reduce indexes       | `a[1]`              | `a`           |
 | Reduce slices        | `a[:2]`             | `a` or `a[:]` |
-| Remove binary parts  | `a + b`, `a || b`   | `a` or `b`    |
+| Remove binary parts  | `a + b`, `a && b`   | `a` or `b`    |
 | Remove unary op      | `-a`, `!a`          | `a`           |
 | Bypass star          | `*a`                | `a`           |
 | Bypass paren         | `(a)`               | `a`           |
-
-Note that extra changes may be needed along with any of these to appease
-the Go compiler, since it doesn't like unused variables and imports.
