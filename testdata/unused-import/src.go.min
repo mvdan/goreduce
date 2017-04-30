@@ -1,6 +1,5 @@
 package crasher
 
-// Crasher just crashes.
 func Crasher() {
 	panic("foocrash")
 }
