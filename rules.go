@@ -173,6 +173,8 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 			if x.Tok == token.DEFINE { // :=
 				continue
 			}
+		case *ast.ReturnStmt:
+			continue
 		}
 		undo := r.afterDelete(stmt)
 		copy(l, orig[:i])

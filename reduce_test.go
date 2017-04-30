@@ -58,8 +58,12 @@ func testReduction(name string) func(*testing.T) {
 		}
 		got := readFile(t, dir, "src.go")
 		if want != got {
-			t.Fatalf("unexpected program output\nwant:\n%sgot:\n%s",
-				want, got)
+			if *write {
+				writeFile(t, dir, "src.go.min", got)
+			} else {
+				t.Fatalf("unexpected program output\nwant:\n%sgot:\n%s",
+					want, got)
+			}
 		}
 		// remove testdata/<dir>/ bit
 		rawLog := buf.String()
