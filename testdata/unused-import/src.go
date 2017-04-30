@@ -1,8 +1,8 @@
 package crasher
 
 import (
-	"unsafe"
 	foo "errors"
+	"unsafe"
 )
 
 func Crasher() {

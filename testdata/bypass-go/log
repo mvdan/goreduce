@@ -1,4 +1,3 @@
 src.go:4: go a() -> a() (3 tries)
-src.go:6: ExprStmt removed (2 tries)
-src.go:5: DeclStmt removed (2 tries)
+src.go:5: SelectStmt removed (2 tries)
 gave up after 2 final tries
