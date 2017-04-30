@@ -1,0 +1,5 @@
+src.go:6: if a {...} else c -> c (3 tries)
+src.go:4: AssignStmt removed (1 tries)
+src.go:5: AssignStmt removed (1 tries)
+src.go:8: block inlined (2 tries)
+gave up after 2 final tries

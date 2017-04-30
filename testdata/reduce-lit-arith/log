@@ -1,8 +1,0 @@
-src.go:3: "foo" -> "" (1 tries)
-src.go:6: 1 -> 0 (3 tries)
-src.go:7: (a) -> a (3 tries)
-src.go:7: a + b -> a (3 tries)
-src.go:7: +a -> a (3 tries)
-src.go:7: const inlined (3 tries)
-src.go:6: DeclStmt removed (1 tries)
-gave up after 2 final tries

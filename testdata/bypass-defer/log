@@ -1,0 +1,2 @@
+src.go:4: defer a() -> a() (2 tries)
+gave up after 2 final tries

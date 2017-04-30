@@ -1,0 +1,2 @@
+src.go:5: a[b:c] -> a[b:] (3 tries)
+gave up after 4 final tries

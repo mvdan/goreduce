@@ -1,8 +1,0 @@
-src.go:6: if a {...} else c -> c (4 tries)
-src.go:4: AssignStmt removed (1 tries)
-src.go:5: AssignStmt removed (1 tries)
-src.go:8: block inlined (3 tries)
-src.go:9: go a() -> a() (3 tries)
-src.go:12: ExprStmt removed (2 tries)
-src.go:11: DeclStmt removed (2 tries)
-gave up after 2 final tries
