@@ -45,7 +45,7 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := reduce(args[0], *callStr, *matchStr, os.Stderr, args[2:]...); err != nil {
+	if err := reduce(args[0], *callStr, *matchStr, os.Stderr, args[1:]...); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
