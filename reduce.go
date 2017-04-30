@@ -49,11 +49,12 @@ type reducer struct {
 
 	useIdents map[types.Object][]*ast.Ident
 
-	outBin  string
-	goArgs  []string
-	dstFile *os.File
-	dstBuf  *bytes.Buffer
-	toRun   bool
+	outBin string
+	goArgs []string
+	dstBuf *bytes.Buffer
+	toRun  bool
+
+	openFiles map[*ast.File]*os.File
 
 	tries     int
 	didChange bool
@@ -67,10 +68,11 @@ var errNoReduction = fmt.Errorf("could not reduce program")
 
 func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) error {
 	r := &reducer{
-		dir:    dir,
-		logOut: logOut,
-		tried:  make(map[string]bool),
-		dstBuf: bytes.NewBuffer(nil),
+		dir:       dir,
+		logOut:    logOut,
+		tried:     make(map[string]bool),
+		openFiles: make(map[*ast.File]*os.File),
+		dstBuf:    bytes.NewBuffer(nil),
 	}
 	tdir, err := ioutil.TempDir("", "goreduce")
 	if err != nil {
@@ -119,12 +121,8 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		if err := rawPrinter.Fprint(f, r.fset, file); err != nil {
 			return err
 		}
-		if !r.toRun || file == r.file {
-			r.dstFile = f
-			defer r.dstFile.Close()
-		} else if err := f.Close(); err != nil {
-			return err
-		}
+		r.openFiles[file] = f
+		defer f.Close()
 		tfnames = append(tfnames, tfname)
 	}
 	if !foundFunc {
@@ -217,17 +215,19 @@ func (r *reducer) okChange() bool {
 		return false
 	}
 	newSrc := r.dstBuf.String()
+	// TODO: unique per file?
 	if r.tried[newSrc] {
 		return false
 	}
 	r.tried[newSrc] = true
-	if err := r.dstFile.Truncate(0); err != nil {
+	f := r.openFiles[r.file]
+	if err := f.Truncate(0); err != nil {
 		return false
 	}
-	if _, err := r.dstFile.Seek(0, io.SeekStart); err != nil {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return false
 	}
-	if _, err := r.dstFile.Write(r.dstBuf.Bytes()); err != nil {
+	if _, err := f.Write(r.dstBuf.Bytes()); err != nil {
 		return false
 	}
 	if err := r.checkRun(); err != nil {
@@ -249,7 +249,7 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 		r.fillUses()
 
 		r.didChange = false
-		r.walk(r.file, r.reduceNode)
+		r.walk(r.pkg, r.reduceNode)
 		if !r.didChange {
 			if *verbose {
 				fmt.Fprintf(r.logOut, "gave up after %d final tries\n", r.tries)

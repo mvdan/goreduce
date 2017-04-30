@@ -22,6 +22,7 @@ type walker struct {
 	queue []walkItem
 	stmt  *ast.Stmt
 	expr  *ast.Expr
+	file  *ast.File
 }
 
 func (w *walker) walk(v interface{}, fn func(interface{}) bool) {
@@ -322,6 +323,7 @@ func (w *walker) walkSingle(v interface{}) {
 
 	// Files and packages
 	case *ast.File:
+		w.file = x
 		w.walkOther(x.Name)
 		w.walkDeclList(x.Decls)
 
