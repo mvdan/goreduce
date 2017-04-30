@@ -53,6 +53,7 @@ type reducer struct {
 	goArgs  []string
 	dstFile *os.File
 	dstBuf  *bytes.Buffer
+	toRun   bool
 
 	tries     int
 	didChange bool
@@ -76,14 +77,6 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		return err
 	}
 	defer os.RemoveAll(tdir)
-	r.tconf.Importer = importer.Default()
-	r.tconf.Error = func(err error) {
-		if terr, ok := err.(types.Error); ok && terr.Soft {
-			// don't stop type-checking on soft errors
-			return
-		}
-		panic("types.Check should not error here: " + err.Error())
-	}
 	if r.matchRe, err = regexp.Compile(match); err != nil {
 		return err
 	}
@@ -102,6 +95,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	parser.ParseDir(r.origFset, r.dir, nil, 0)
 	tfnames := make([]string, 0, len(r.pkg.Files)+1)
 	foundFunc := false
+	r.toRun = funcName != ""
 	var origMain *ast.FuncDecl
 	for fpath, file := range r.pkg.Files {
 		if !foundFunc {
@@ -116,7 +110,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		if err != nil {
 			return err
 		}
-		if funcName != "main" {
+		if r.toRun && funcName != "main" {
 			if fd := delFunc(file, "main"); fd != nil && file == r.file {
 				origMain = fd
 			}
@@ -125,7 +119,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		if err := rawPrinter.Fprint(f, r.fset, file); err != nil {
 			return err
 		}
-		if file == r.file {
+		if !r.toRun || file == r.file {
 			r.dstFile = f
 			defer r.dstFile.Close()
 		} else if err := f.Close(); err != nil {
@@ -133,11 +127,16 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		}
 		tfnames = append(tfnames, tfname)
 	}
-	if funcName != "" && !foundFunc {
-		return fmt.Errorf("top-level func %s does not exist", funcName)
+	if !foundFunc {
+		if r.toRun {
+			return fmt.Errorf("top-level func %s does not exist", funcName)
+		}
+		for _, file := range r.pkg.Files {
+			r.file = file
+		}
 	}
 	mfname := filepath.Join(tdir, mainFile)
-	if funcName != "main" {
+	if r.toRun && funcName != "main" {
 		mf, err := os.Create(mfname)
 		if err != nil {
 			return err
@@ -149,6 +148,17 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 			return err
 		}
 		tfnames = append(tfnames, mfname)
+	}
+	r.tconf.Importer = importer.Default()
+	r.tconf.Error = func(err error) {
+		if terr, ok := err.(types.Error); ok && terr.Soft {
+			// don't stop type-checking on soft errors
+			return
+		}
+		if !r.toRun {
+			return
+		}
+		panic("types.Check should not error here: " + err.Error())
 	}
 	r.outBin = filepath.Join(tdir, "bin")
 	r.goArgs = []string{"build", "-o", r.outBin}
@@ -289,6 +299,9 @@ func (r *reducer) buildAndRun() []byte {
 			return out
 		}
 		panic("could not call go build: " + err.Error())
+	}
+	if !r.toRun {
+		return nil
 	}
 	if out, err := exec.Command(r.outBin).CombinedOutput(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {

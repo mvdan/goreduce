@@ -1,0 +1,6 @@
+package crasher
+
+func F() {
+	switch nil.(type) {
+	}
+}
