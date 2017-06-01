@@ -21,8 +21,6 @@ import (
 	"text/template"
 )
 
-const mainFile = "goreduce_main.go"
-
 var (
 	mainTmpl = template.Must(template.New("main").Parse(`package main
 
@@ -133,7 +131,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 			r.file = file
 		}
 	}
-	mfname := filepath.Join(tdir, mainFile)
+	mfname := filepath.Join(tdir, "goreduce_main.go")
 	if r.toRun && funcName != "main" {
 		mf, err := os.Create(mfname)
 		if err != nil {
