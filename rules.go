@@ -302,7 +302,7 @@ func (r *reducer) afterDeleteExprs(exprs []ast.Expr) (undo func()) {
 func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 	type redoImp struct {
 		imp  *ast.ImportSpec
-		name string
+		name *ast.Ident
 	}
 	var imps []redoImp
 	type redoVar struct {
@@ -334,7 +334,7 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 				}
 				imps = append(imps, redoImp{
 					imp:  imp,
-					name: name,
+					name: imp.Name,
 				})
 				imp.Name = &ast.Ident{
 					NamePos: imp.Path.Pos(),
@@ -372,7 +372,9 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 	}
 	return func() {
 		for _, imp := range imps {
-			imp.imp.Name.Name = imp.name
+			// go/types doesn't treat an empty name
+			// literal the same way as no literal
+			imp.imp.Name = imp.name
 		}
 		for _, rvar := range vars {
 			rvar.id.Name = rvar.name
