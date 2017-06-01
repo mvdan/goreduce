@@ -22,6 +22,38 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		return false
 	}
 	switch x := v.(type) {
+	case *ast.File:
+		origDecls := x.Decls
+		for i, decl := range x.Decls {
+			gd, _ := decl.(*ast.GenDecl)
+			if gd == nil || len(gd.Specs) != 1 {
+				// we (will) reduce multiple specs into
+				// 1 in the *ast.GenDecl case
+				continue
+			}
+			vs, _ := gd.Specs[0].(*ast.ValueSpec)
+			if vs == nil {
+				continue
+			}
+			for _, name := range vs.Names {
+				if ast.IsExported(name.Name) {
+					return true
+				}
+				if len(r.useIdents[r.info.Defs[name]]) > 0 {
+					return true
+				}
+			}
+			x.Decls = append(x.Decls[:i], x.Decls[i+1:]...)
+			if r.okChange() {
+				if gd.Tok == token.CONST {
+					r.logChange(x, "removed const decl")
+				} else {
+					r.logChange(x, "removed var decl")
+				}
+				break
+			}
+			x.Decls = origDecls
+		}
 	case *ast.ImportSpec:
 		name := ""
 		if x.Name != nil {

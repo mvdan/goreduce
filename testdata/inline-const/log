@@ -1,2 +1,3 @@
 src.go:7: const inlined (3 tries)
+src.go:1: removed const decl (1 tries)
 gave up after 2 final tries
