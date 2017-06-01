@@ -90,14 +90,14 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	case *ast.Ident:
 		obj := r.info.Uses[x]
-		if obj == nil { // decl, not use
+		if obj == nil { // declaration of ident, not its use
 			break
 		}
-		if len(r.useIdents[obj]) > 1 {
+		if len(r.useIdents[obj]) > 1 { // used elsewhere
 			break
 		}
-		bt, ok := obj.Type().(*types.Basic)
-		if !ok || bt.Info()&types.IsUntyped == 0 {
+		_, ok := obj.Type().(*types.Basic)
+		if !ok {
 			break
 		}
 		var expr ast.Expr
