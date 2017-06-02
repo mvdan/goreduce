@@ -99,29 +99,38 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if _, ok := obj.Type().(*types.Basic); !ok {
 			break
 		}
-		isVar := true
 		declIdent := r.revDefs[obj]
-		vs, _ := r.parents[declIdent].(*ast.ValueSpec)
-		if vs == nil {
-			break
-		}
-		if gd := r.parents[vs].(*ast.GenDecl); gd.Tok == token.CONST {
-			isVar = false
-		}
+		isVar := true
 		var expr ast.Expr
-		for i, name := range vs.Names {
-			if name == declIdent {
-				expr = vs.Values[i]
-				break
+		switch y := r.parents[declIdent].(type) {
+		case *ast.ValueSpec:
+			if gd := r.parents[y].(*ast.GenDecl); gd.Tok == token.CONST {
+				isVar = false
+			}
+			for i, name := range y.Names {
+				if name == declIdent {
+					expr = y.Values[i]
+					break
+				}
+			}
+		case *ast.AssignStmt: // Tok must be := (DEFINE)
+			for i, name := range y.Lhs {
+				if name == declIdent {
+					expr = y.Rhs[i]
+					break
+				}
 			}
 		}
+		undo := r.afterDelete(x)
 		if expr != nil && r.changeExpr(expr) {
 			if isVar {
 				r.logChange(x, "var inlined")
 			} else {
 				r.logChange(x, "const inlined")
 			}
+			break
 		}
+		undo()
 	case *ast.BasicLit:
 		r.reduceLit(x)
 	case *ast.SliceExpr:

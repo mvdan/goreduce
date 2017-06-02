@@ -2,4 +2,6 @@ src.go:5: if a { b } -> { b } (2 tries)
 src.go:5: block inlined (2 tries)
 src.go:9: ReturnStmt removed (2 tries)
 src.go:4: AssignStmt removed (1 tries)
+src.go:7: var inlined (3 tries)
+src.go:6: AssignStmt removed (1 tries)
 gave up after 2 final tries
