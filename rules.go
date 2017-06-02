@@ -369,16 +369,12 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 				name = ""
 			}
 			path := x.Imported().Path()
-			ast.Inspect(r.file, func(node ast.Node) bool {
-				imp, _ := node.(*ast.ImportSpec)
-				if imp == nil {
-					return true
-				}
+			for _, imp := range r.file.Imports {
 				if imp.Name != nil && imp.Name.Name != name {
-					return true
+					continue
 				}
 				if !basicLitEqualsString(imp.Path, path) {
-					return true
+					continue
 				}
 				imps = append(imps, redoImp{
 					imp:  imp,
@@ -388,8 +384,7 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 					NamePos: imp.Path.Pos(),
 					Name:    "_",
 				}
-				return true
-			})
+			}
 		case *types.Var:
 			ast.Inspect(r.file, func(node ast.Node) bool {
 				switch x := node.(type) {
