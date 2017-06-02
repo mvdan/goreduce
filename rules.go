@@ -99,20 +99,18 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if _, ok := obj.Type().(*types.Basic); !ok {
 			break
 		}
+		declIdent := r.revDefs[obj]
+		vs, _ := r.parents[declIdent].(*ast.ValueSpec)
+		if vs == nil {
+			break
+		}
 		var expr ast.Expr
-		ast.Inspect(r.file, func(node ast.Node) bool {
-			vs,_ := node.(*ast.ValueSpec)
-			if vs == nil {
-				return true
+		for i, name := range vs.Names {
+			if name == declIdent {
+				expr = vs.Values[i]
+				break
 			}
-			for i, name := range vs.Names {
-				if r.info.Defs[name] == obj {
-					expr = vs.Values[i]
-					return false
-				}
-			}
-			return true
-		})
+		}
 		if expr != nil && r.changeExpr(expr) {
 			r.logChange(x, "const inlined")
 		}

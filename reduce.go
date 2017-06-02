@@ -46,6 +46,8 @@ type reducer struct {
 	info  *types.Info
 
 	useIdents map[types.Object][]*ast.Ident
+	revDefs   map[types.Object]*ast.Ident
+	parents   map[ast.Node]ast.Node
 
 	outBin string
 	goArgs []string
@@ -165,6 +167,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	if err := r.checkRun(); err != nil {
 		return err
 	}
+	r.fillParents()
 	if anyChanges := r.reduceLoop(); !anyChanges {
 		return errNoReduction
 	}
@@ -244,7 +247,7 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 	for {
 		// Update type info after the AST changes
 		r.tconf.Check(r.dir, r.fset, r.files, r.info)
-		r.fillUses()
+		r.fillObjs()
 
 		r.didChange = false
 		r.walk(r.pkg, r.reduceNode)
@@ -258,7 +261,14 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 	}
 }
 
-func (r *reducer) fillUses() {
+func (r *reducer) fillObjs() {
+	r.revDefs = make(map[types.Object]*ast.Ident, len(r.info.Defs))
+	for id, obj := range r.info.Defs {
+		if obj == nil {
+			continue
+		}
+		r.revDefs[obj] = id
+	}
 	r.useIdents = make(map[types.Object][]*ast.Ident, len(r.info.Uses)/2)
 	for id, obj := range r.info.Uses {
 		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != "main" {
@@ -267,6 +277,20 @@ func (r *reducer) fillUses() {
 		}
 		r.useIdents[obj] = append(r.useIdents[obj], id)
 	}
+}
+
+func (r *reducer) fillParents() {
+	r.parents = make(map[ast.Node]ast.Node)
+	stack := make([]ast.Node, 1, 32)
+	ast.Inspect(r.pkg, func(node ast.Node) bool {
+		if node == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		r.parents[node] = stack[len(stack)-1]
+		stack = append(stack, node)
+		return true
+	})
 }
 
 func findFunc(file *ast.File, name string) *ast.FuncDecl {
