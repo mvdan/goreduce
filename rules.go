@@ -272,7 +272,7 @@ func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 		if bl == nil {
 			continue
 		}
-		fn := func(node ast.Node) bool {
+		fixScopeNames := func(node ast.Node) bool {
 			switch x := node.(type) {
 			case *ast.BlockStmt:
 				return false
@@ -302,7 +302,7 @@ func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 			return true
 		}
 		for _, stmt := range bl.List {
-			ast.Inspect(stmt, fn)
+			ast.Inspect(stmt, fixScopeNames)
 		}
 		var l []ast.Stmt
 		l = append(l, orig[:i]...)
