@@ -72,6 +72,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		return false
 	case *[]ast.Stmt:
 		r.removeStmt(x)
+	case *ast.BlockStmt:
 		r.inlineBlock(x)
 	case *ast.IfStmt:
 		undo := r.afterDelete(x.Init, x.Cond, x.Else)
@@ -288,66 +289,53 @@ func (r *reducer) mergeLines(start, end token.Pos) {
 	}
 }
 
-func (r *reducer) inlineBlock(list *[]ast.Stmt) {
-	orig := *list
+func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
 	type undoIdent struct {
 		id   *ast.Ident
 		name string
 	}
 	var undoIdents []undoIdent
-	for i, stmt := range orig {
-		bl, _ := stmt.(*ast.BlockStmt)
-		if bl == nil {
-			continue
-		}
-		fixScopeNames := func(node ast.Node) bool {
-			switch x := node.(type) {
-			case *ast.BlockStmt:
-				return false
-			case *ast.Ident:
-				obj := r.info.Defs[x]
-				if obj == nil { // use, not decl
-					break
-				}
-				scope := obj.Parent()
-				if scope.Parent().Lookup(x.Name) == nil {
-					break
-				}
-				origName := x.Name
-				newName := x.Name + "_"
-				for scope.Lookup(newName) != nil {
-					newName += "_"
-				}
-				x.Name = newName
-				for _, use := range r.useIdents[obj] {
-					undoIdents = append(undoIdents, undoIdent{
-						id:   use,
-						name: origName,
-					})
-					use.Name = newName
-				}
+	fixScopeNames := func(node ast.Node) bool {
+		switch x := node.(type) {
+		case *ast.BlockStmt:
+			return false
+		case *ast.Ident:
+			obj := r.info.Defs[x]
+			if obj == nil { // use, not decl
+				break
 			}
-			return true
+			scope := obj.Parent()
+			if scope.Parent().Lookup(x.Name) == nil {
+				break
+			}
+			origName := x.Name
+			newName := x.Name + "_"
+			for scope.Lookup(newName) != nil {
+				newName += "_"
+			}
+			x.Name = newName
+			for _, use := range r.useIdents[obj] {
+				undoIdents = append(undoIdents, undoIdent{
+					id:   use,
+					name: origName,
+				})
+				use.Name = newName
+			}
 		}
-		for _, stmt := range bl.List {
-			ast.Inspect(stmt, fixScopeNames)
-		}
-		var l []ast.Stmt
-		l = append(l, orig[:i]...)
-		l = append(l, bl.List...)
-		l = append(l, orig[i+1:]...)
-		*list = l
-		if r.okChange() {
-			r.mergeLines(bl.Pos(), bl.List[0].Pos())
-			r.mergeLines(bl.List[len(bl.List)-1].End(), bl.End())
-			r.logChange(stmt, "block inlined")
-			return
-		}
+		return true
+	}
+	for _, stmt := range bl.List {
+		ast.Inspect(stmt, fixScopeNames)
+	}
+	if r.replaceStmts(bl, bl.List) {
+		r.mergeLines(bl.Pos(), bl.List[0].Pos())
+		r.mergeLines(bl.List[len(bl.List)-1].End(), bl.End())
+		r.logChange(bl, "block inlined")
+		return
 	}
 	for _, ui := range undoIdents {
 		ui.id.Name = ui.name
 	}
-	*list = orig
 }
 
 func (r *reducer) afterDeleteExprs(exprs []ast.Expr) (undo func()) {
@@ -474,6 +462,7 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 	orig := *r.stmt
 	if *r.stmt = stmt; r.okChange() {
+		r.parents[stmt] = r.parents[orig]
 		return true
 	}
 	*r.stmt = orig
@@ -483,9 +472,37 @@ func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 func (r *reducer) changeExpr(expr ast.Expr) bool {
 	orig := *r.expr
 	if *r.expr = expr; r.okChange() {
+		r.parents[expr] = r.parents[orig]
 		return true
 	}
 	*r.expr = orig
+	return false
+}
+
+func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) bool {
+	var stmts *[]ast.Stmt
+	switch x := r.parents[old].(type) {
+	case *ast.BlockStmt:
+		stmts = &x.List
+	default: // e.g. a func body, cannot inline
+		return false
+	}
+	orig := *stmts
+	i := 0
+	for ; i < len(orig); i++ {
+		if orig[i] == old {
+			break
+		}
+	}
+	l := make([]ast.Stmt, 0, (len(orig)+len(with))-1)
+	l = append(l, orig[:i]...)
+	l = append(l, with...)
+	l = append(l, orig[i+1:]...)
+	*stmts = l
+	if r.okChange() {
+		return true
+	}
+	*stmts = orig
 	return false
 }
 
