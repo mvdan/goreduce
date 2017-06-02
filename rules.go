@@ -99,10 +99,14 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if _, ok := obj.Type().(*types.Basic); !ok {
 			break
 		}
+		isVar := true
 		declIdent := r.revDefs[obj]
 		vs, _ := r.parents[declIdent].(*ast.ValueSpec)
 		if vs == nil {
 			break
+		}
+		if gd := r.parents[vs].(*ast.GenDecl); gd.Tok == token.CONST {
+			isVar = false
 		}
 		var expr ast.Expr
 		for i, name := range vs.Names {
@@ -112,7 +116,11 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			}
 		}
 		if expr != nil && r.changeExpr(expr) {
-			r.logChange(x, "const inlined")
+			if isVar {
+				r.logChange(x, "var inlined")
+			} else {
+				r.logChange(x, "const inlined")
+			}
 		}
 	case *ast.BasicLit:
 		r.reduceLit(x)
