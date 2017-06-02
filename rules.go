@@ -96,14 +96,13 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if len(r.useIdents[obj]) > 1 { // used elsewhere
 			break
 		}
-		_, ok := obj.Type().(*types.Basic)
-		if !ok {
+		if _, ok := obj.Type().(*types.Basic); !ok {
 			break
 		}
 		var expr ast.Expr
 		ast.Inspect(r.file, func(node ast.Node) bool {
-			vs, ok := node.(*ast.ValueSpec)
-			if !ok {
+			vs,_ := node.(*ast.ValueSpec)
+			if vs == nil {
 				return true
 			}
 			for i, name := range vs.Names {
@@ -226,8 +225,8 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 // consts with empty (underscore) or unused names.
 func (r *reducer) allUnusedNames(gd *ast.GenDecl) bool {
 	for _, spec := range gd.Specs {
-		vs, ok := spec.(*ast.ValueSpec)
-		if !ok {
+		vs, _ := spec.(*ast.ValueSpec)
+		if vs == nil {
 			return false
 		}
 		for _, name := range vs.Names {
@@ -269,8 +268,8 @@ func (r *reducer) inlineBlock(list *[]ast.Stmt) {
 	}
 	var undoIdents []undoIdent
 	for i, stmt := range orig {
-		bl, ok := stmt.(*ast.BlockStmt)
-		if !ok {
+		bl, _ := stmt.(*ast.BlockStmt)
+		if bl == nil {
 			continue
 		}
 		fn := func(node ast.Node) bool {
@@ -354,8 +353,8 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 			}
 			path := x.Imported().Path()
 			ast.Inspect(r.file, func(node ast.Node) bool {
-				imp, ok := node.(*ast.ImportSpec)
-				if !ok {
+				imp, _ := node.(*ast.ImportSpec)
+				if imp == nil {
 					return true
 				}
 				if imp.Name != nil && imp.Name.Name != name {
@@ -387,11 +386,8 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 					if len(x.Lhs) != 1 {
 						return false
 					}
-					id, ok := x.Lhs[0].(*ast.Ident)
-					if !ok {
-						return false
-					}
-					if r.info.Defs[id] != obj {
+					id, _ := x.Lhs[0].(*ast.Ident)
+					if id == nil || r.info.Defs[id] != obj {
 						return false
 					}
 					vars = append(vars, redoVar{id, id.Name, x})
@@ -424,13 +420,10 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 			continue // for convenience
 		}
 		ast.Inspect(node, func(node ast.Node) bool {
-			id, ok := node.(*ast.Ident)
-			if !ok {
-				return true
-			}
+			id, _ := node.(*ast.Ident)
 			obj := r.info.Uses[id]
-			if obj == nil {
-				return false
+			if id == nil || obj == nil {
+				return true
 			}
 			if num, e := remaining[obj]; e {
 				if num == 1 {

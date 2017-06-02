@@ -271,8 +271,8 @@ func (r *reducer) fillUses() {
 
 func findFunc(file *ast.File, name string) *ast.FuncDecl {
 	for _, decl := range file.Decls {
-		fd, ok := decl.(*ast.FuncDecl)
-		if ok && fd.Name.Name == name {
+		fd, _ := decl.(*ast.FuncDecl)
+		if fd != nil && fd.Name.Name == name {
 			return fd
 		}
 	}
@@ -281,8 +281,8 @@ func findFunc(file *ast.File, name string) *ast.FuncDecl {
 
 func delFunc(file *ast.File, name string) *ast.FuncDecl {
 	for i, decl := range file.Decls {
-		fd, ok := decl.(*ast.FuncDecl)
-		if ok && fd.Name.Name == name {
+		fd, _ := decl.(*ast.FuncDecl)
+		if fd != nil && fd.Name.Name == name {
 			file.Decls = append(file.Decls[:i], file.Decls[i+1:]...)
 			return fd
 		}
