@@ -66,11 +66,10 @@ var errNoReduction = fmt.Errorf("could not reduce program")
 
 func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) error {
 	r := &reducer{
-		dir:       dir,
-		logOut:    logOut,
-		tried:     make(map[string]bool),
-		openFiles: make(map[*ast.File]*os.File),
-		dstBuf:    bytes.NewBuffer(nil),
+		dir:    dir,
+		logOut: logOut,
+		tried:  make(map[string]bool, 16),
+		dstBuf: bytes.NewBuffer(nil),
 	}
 	tdir, err := ioutil.TempDir("", "goreduce")
 	if err != nil {
@@ -97,6 +96,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	foundFunc := false
 	r.toRun = funcName != ""
 	var origMain *ast.FuncDecl
+	r.openFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
 	for fpath, file := range r.pkg.Files {
 		if !foundFunc {
 			if fd := findFunc(file, funcName); fd != nil {
@@ -259,7 +259,7 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 }
 
 func (r *reducer) fillUses() {
-	r.useIdents = make(map[types.Object][]*ast.Ident)
+	r.useIdents = make(map[types.Object][]*ast.Ident, len(r.info.Uses)/2)
 	for id, obj := range r.info.Uses {
 		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != "main" {
 			// builtin or declared outside of our pkg
