@@ -20,7 +20,7 @@ var (
 func init() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
-			"Usage: goreduce -match=re [-call=stmt] dir [build flags]\n")
+			"Usage: goreduce -match=re [-call=name] dir [build flags]\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Flags to pass to 'go build' can be given as extra arguments. The defaults are:
