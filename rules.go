@@ -198,6 +198,7 @@ func basicLitEqualsString(bl *ast.BasicLit, s string) bool {
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	orig := *list
 	l := make([]ast.Stmt, len(orig)-1)
+	seenTerminating := false
 	for i, stmt := range orig {
 		// discard those that will likely break compilation
 		switch x := stmt.(type) {
@@ -210,8 +211,20 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 			if x.Tok == token.DEFINE { // :=
 				continue
 			}
+		case *ast.ExprStmt:
+			ce, _ := x.X.(*ast.CallExpr)
+			if ce == nil {
+				break
+			}
+			id, _ := ce.Fun.(*ast.Ident)
+			if id != nil && id.Name == "panic" {
+				seenTerminating = true
+			}
 		case *ast.ReturnStmt:
-			continue
+			if !seenTerminating {
+				seenTerminating = true
+				continue
+			}
 		}
 		undo := r.afterDelete(stmt)
 		copy(l, orig[:i])
