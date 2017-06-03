@@ -71,6 +71,9 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 		return false
 	case *[]ast.Stmt:
+		if len(*x) == 1 {
+			break
+		}
 		r.removeStmt(x)
 	case *ast.BlockStmt:
 		if r.canReplaceStmts(x) {
