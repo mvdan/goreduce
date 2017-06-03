@@ -386,28 +386,16 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 				}
 			}
 		case *types.Var:
-			ast.Inspect(r.file, func(node ast.Node) bool {
-				switch x := node.(type) {
-				case *ast.Ident:
-					vars = append(vars, redoVar{x, x.Name, nil})
-					if r.info.Defs[x] == obj {
-						x.Name = "_"
-					}
-				case *ast.AssignStmt:
-					// TODO: support more complex assigns
-					if len(x.Lhs) != 1 {
-						return false
-					}
-					id, _ := x.Lhs[0].(*ast.Ident)
-					if id == nil || r.info.Defs[id] != obj {
-						return false
-					}
-					vars = append(vars, redoVar{id, id.Name, x})
-					id.Name, x.Tok = "_", token.ASSIGN
-					return false
+			declIdent := r.revDefs[x]
+			vars = append(vars, redoVar{declIdent, declIdent.Name, nil})
+			switch y := r.parents[declIdent].(type) {
+			case *ast.AssignStmt: // Tok must be := (DEFINE)
+				vars = append(vars, redoVar{declIdent, declIdent.Name, y})
+				if len(y.Lhs) == 1 { // TODO: this is sloppy
+					y.Tok = token.ASSIGN
 				}
-				return true
-			})
+			}
+			declIdent.Name = "_"
 		}
 	}
 	return func() {
