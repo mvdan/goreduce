@@ -233,8 +233,9 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 				break
 			}
 			id, _ := ce.Fun.(*ast.Ident)
-			if id != nil && id.Name == "panic" {
+			if id != nil && id.Name == "panic" && !seenTerminating {
 				seenTerminating = true
+				continue
 			}
 		case *ast.ReturnStmt:
 			if !seenTerminating {
