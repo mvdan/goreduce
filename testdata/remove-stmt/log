@@ -1,5 +1,5 @@
 src.go:6: []T{a, b} -> []T{} (2 tries)
-src.go:5: AssignStmt removed (1 tries)
+src.go:5: DeclStmt removed (1 tries)
 src.go:7: a || b -> b (3 tries)
 src.go:7: 1234567... -> 0 (3 tries)
 gave up after 2 final tries

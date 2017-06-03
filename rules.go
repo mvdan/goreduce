@@ -73,7 +73,9 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	case *[]ast.Stmt:
 		r.removeStmt(x)
 	case *ast.BlockStmt:
-		r.inlineBlock(x)
+		if r.canReplaceStmts(x) {
+			r.inlineBlock(x)
+		}
 	case *ast.IfStmt:
 		undo := r.afterDelete(x.Init, x.Cond, x.Else)
 		if r.changeStmt(x.Body) {
@@ -461,6 +463,15 @@ func (r *reducer) changeExpr(expr ast.Expr) bool {
 	}
 	*r.expr = orig
 	return false
+}
+
+func (r *reducer) canReplaceStmts(old ast.Stmt) bool {
+	switch r.parents[old].(type) {
+	case *ast.BlockStmt:
+		return true
+	default: // e.g. a func body, cannot inline
+		return false
+	}
 }
 
 func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) bool {
