@@ -29,6 +29,8 @@ func main() {
 }
 `))
 	rawPrinter = printer.Config{Mode: printer.RawFormat}
+
+	fastTest = false
 )
 
 type reducer struct {
@@ -164,8 +166,10 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	r.goArgs = append(r.goArgs, bflags...)
 	r.goArgs = append(r.goArgs, tfnames...)
 	// Check that the output matches before we apply any changes
-	if err := r.checkRun(); err != nil {
-		return err
+	if !fastTest {
+		if err := r.checkRun(); err != nil {
+			return err
+		}
 	}
 	r.fillParents()
 	if anyChanges := r.reduceLoop(); !anyChanges {

@@ -13,7 +13,16 @@ import (
 	"testing"
 )
 
-var write = flag.Bool("w", false, "write test outputs")
+var (
+	write = flag.Bool("w", false, "write test outputs")
+	fast  = flag.Bool("f", false, "skip work to make tests faster")
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	fastTest = *fast
+	os.Exit(m.Run())
+}
 
 func TestReductions(t *testing.T) {
 	paths, err := filepath.Glob(filepath.Join("testdata", "*"))
@@ -120,6 +129,8 @@ func Crasher() {
 
 func TestReduceErrs(t *testing.T) {
 	t.Parallel()
+	fastTest = false
+	defer func() { fastTest = *fast }()
 	tests := [...]struct {
 		dir, funcName, match string
 		errCont              string
