@@ -1,10 +1,7 @@
 package crasher
 
 func Crasher() {
-	a := false
-	b := 0
-	if a {
-		_ = b
+	if false {
 	} else {
 		panic("panic message")
 	}

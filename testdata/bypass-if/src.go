@@ -1,10 +1,7 @@
 package crasher
 
-func Crasher() string {
-	msg := "wrong message"
+func Crasher() {
 	if true {
-		msg := "panic message"
-		panic(msg)
+		panic("panic message")
 	}
-	return msg
 }

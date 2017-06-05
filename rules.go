@@ -80,12 +80,14 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			r.inlineBlock(x)
 		}
 	case *ast.IfStmt:
-		undo := r.afterDelete(x.Init, x.Cond, x.Else)
-		if r.changeStmt(x.Body) {
-			r.logChange(x, "if a { b } -> { b }")
-			break
+		if len(x.Body.List) > 0 {
+			undo := r.afterDelete(x.Init, x.Cond, x.Else)
+			if r.changeStmt(x.Body) {
+				r.logChange(x, "if a { b } -> { b }")
+				break
+			}
+			undo()
 		}
-		undo()
 		if x.Else != nil {
 			undo := r.afterDelete(x.Init, x.Cond, x.Body)
 			if r.changeStmt(x.Else) {
