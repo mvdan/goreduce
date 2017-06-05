@@ -296,9 +296,16 @@ func (r *reducer) mergeLines(start, end token.Pos) {
 	file := r.fset.File(start)
 	l1 := file.Line(start)
 	l2 := file.Line(end)
-	for l1 < l2 {
+	for l1 < l2 && l1 < file.LineCount() {
 		file.MergeLine(l1)
 		l1++
+	}
+}
+
+func setPos(n ast.Node, pos token.Pos) {
+	switch x := n.(type) {
+	case *ast.BasicLit:
+		x.ValuePos = pos
 	}
 }
 
@@ -485,6 +492,9 @@ func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 func (r *reducer) changeExpr(expr ast.Expr) bool {
 	orig := *r.expr
 	if *r.expr = expr; r.okChange() {
+		setPos(expr, orig.Pos())
+		r.mergeLines(orig.Pos(), expr.Pos())
+		r.mergeLines(expr.End(), orig.End())
 		r.parents[expr] = r.parents[orig]
 		return true
 	}

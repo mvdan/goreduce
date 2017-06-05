@@ -1,6 +1,5 @@
 package crasher
 
 func Crasher() {
-	panic(0,
-	)
+	panic(0)
 }
