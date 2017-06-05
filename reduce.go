@@ -193,8 +193,12 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
 		pos := r.origFset.Position(node.Pos())
-		fmt.Fprintf(r.logOut, "%s:%d: %s (%d tries)\n",
-			pos.Filename, pos.Line, fmt.Sprintf(format, a...), r.tries)
+		times := "1 try"
+		if r.tries != 1 {
+			times = fmt.Sprintf("%d tries", r.tries)
+		}
+		fmt.Fprintf(r.logOut, "%s:%d: %s (%s)\n",
+			pos.Filename, pos.Line, fmt.Sprintf(format, a...), times)
 	}
 	r.tries = 0
 }

@@ -1,4 +1,4 @@
-src.go:9: AssignStmt removed (1 tries)
-src.go:4: removed import (1 tries)
-src.go:5: removed import (1 tries)
+src.go:9: AssignStmt removed (1 try)
+src.go:4: removed import (1 try)
+src.go:5: removed import (1 try)
 gave up after 0 final tries
