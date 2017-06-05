@@ -205,14 +205,6 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	return true
 }
 
-func basicLitEqualsString(bl *ast.BasicLit, s string) bool {
-	if bl.Kind != token.STRING {
-		return false
-	}
-	unq, _ := strconv.Unquote(bl.Value)
-	return unq == s
-}
-
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	orig := *list
 	l := make([]ast.Stmt, len(orig)-1)
@@ -317,19 +309,18 @@ func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
 			if scope.Parent().Lookup(x.Name) == nil {
 				break
 			}
-			origName := x.Name
-			newName := x.Name + "_"
+			newName := x.Name
 			for scope.Lookup(newName) != nil {
 				newName += "_"
 			}
-			x.Name = newName
 			for _, use := range r.useIdents[obj] {
 				undoIdents = append(undoIdents, undoIdent{
 					id:   use,
-					name: origName,
+					name: x.Name,
 				})
 				use.Name = newName
 			}
+			x.Name = newName
 		}
 		return true
 	}
@@ -381,7 +372,8 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 				if imp.Name != nil && imp.Name.Name != name {
 					continue
 				}
-				if !basicLitEqualsString(imp.Path, path) {
+				unq, _ := strconv.Unquote(imp.Path.Value)
+				if unq != path {
 					continue
 				}
 				imps = append(imps, redoImp{
