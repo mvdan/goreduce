@@ -104,30 +104,14 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		declIdent := r.revDefs[obj]
-		isVar := true
-		var expr ast.Expr
-		switch y := r.parents[declIdent].(type) {
-		case *ast.ValueSpec:
-			isVar = r.parents[y].(*ast.GenDecl).Tok == token.VAR
-			for i, name := range y.Names {
-				if name == declIdent {
-					expr = y.Values[i]
-					break
-				}
-			}
-		case *ast.AssignStmt: // Tok must be := (DEFINE)
-			for i, name := range y.Lhs {
-				if name == declIdent {
-					expr = y.Rhs[i]
-					break
-				}
-			}
-		}
-		if expr == nil {
+		gd, _ := r.parents[r.parents[declIdent]].(*ast.GenDecl)
+		isVar := gd == nil || gd.Tok == token.VAR
+		val := r.declIdentValue(declIdent)
+		if val == nil {
 			break
 		}
 		r.afterDelete(x)
-		if r.changedExpr(expr) {
+		if r.changedExpr(val) {
 			if isVar {
 				r.logChange(x, "var inlined")
 			} else {
@@ -206,22 +190,47 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		declId := r.revDefs[obj]
-		fd := r.parents[declId].(*ast.FuncDecl)
-		if fd.Body == nil || anyFuncControlNodes(fd.Body) {
+		var ftype *ast.FuncType
+		var fbody *ast.BlockStmt
+		if fd, _ := r.parents[declId].(*ast.FuncDecl); fd != nil {
+			fbody, ftype = fd.Body, fd.Type
+		} else {
+			fl := r.declIdentValue(declId).(*ast.FuncLit)
+			fbody, ftype = fl.Body, fl.Type
+		}
+		if fbody == nil || anyFuncControlNodes(fbody) {
 			break
 		}
-		if fd.Type.Params != nil && len(fd.Type.Params.List) > 0 {
+		if ftype.Params != nil && len(ftype.Params.List) > 0 {
 			break
 		}
-		if fd.Type.Results != nil && len(fd.Type.Results.List) > 0 {
+		if ftype.Results != nil && len(ftype.Results.List) > 0 {
 			break
 		}
 		r.afterDelete(x)
-		if r.changedStmt(fd.Body) {
+		if r.changedStmt(fbody) {
 			r.logChange(x, "inlined call")
 		}
 	}
 	return true
+}
+
+func (r *reducer) declIdentValue(id *ast.Ident) ast.Expr {
+	switch y := r.parents[id].(type) {
+	case *ast.ValueSpec:
+		for i, name := range y.Names {
+			if name == id {
+				return y.Values[i]
+			}
+		}
+	case *ast.AssignStmt: // Tok must be := (DEFINE)
+		for i, name := range y.Lhs {
+			if name == id {
+				return y.Rhs[i]
+			}
+		}
+	}
+	return nil
 }
 
 func anyFuncControlNodes(bl *ast.BlockStmt) (any bool) {
@@ -332,6 +341,7 @@ func (r *reducer) mergeLines(start, end token.Pos) {
 	}
 }
 
+// TODO: handle nodes that we duplicated
 func setPos(node ast.Node, pos token.Pos) {
 	switch x := node.(type) {
 	case *ast.BasicLit:
