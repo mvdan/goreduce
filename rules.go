@@ -10,8 +10,6 @@ import (
 	"go/types"
 	"strconv"
 	"strings"
-
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 // TODO: use x/tools/go/ssa?
@@ -62,12 +60,30 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if name != "_" {
 			return false
 		}
-		path, _ := strconv.Unquote(x.Path.Value)
-		astutil.DeleteNamedImport(r.fset, r.file, name, path)
+		// TODO: this is probably reusable elsewhere
+		gd := r.parents[x].(*ast.GenDecl)
+		oldSpecs := gd.Specs
+		for i, spec := range oldSpecs {
+			if spec == x {
+				gd.Specs = append(gd.Specs[:i], gd.Specs[i+1:]...)
+				break
+			}
+		}
+		f := r.parents[gd].(*ast.File)
+		oldDecls := f.Decls
+		if len(gd.Specs) == 0 {
+			for i, decl := range oldDecls {
+				if decl == gd {
+					f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
+					break
+				}
+			}
+		}
 		if r.okChange() {
 			r.logChange(x, "removed import")
 		} else {
-			astutil.AddNamedImport(r.fset, r.file, name, path)
+			gd.Specs = oldSpecs
+			f.Decls = oldDecls
 		}
 		return false
 	case *[]ast.Stmt:
