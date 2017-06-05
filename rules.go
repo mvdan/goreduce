@@ -224,11 +224,6 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	for i, stmt := range orig {
 		// discard those that will likely break compilation
 		switch x := stmt.(type) {
-		case *ast.DeclStmt:
-			gd := x.Decl.(*ast.GenDecl)
-			if !r.allUnusedNames(gd) {
-				continue
-			}
 		case *ast.AssignStmt:
 			if x.Tok == token.DEFINE { // :=
 				continue
@@ -264,23 +259,6 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 		}
 	}
 	*list = orig
-}
-
-// allUnusedNames reports whether all delcs in a GenDecl are vars or
-// consts with empty (underscore) or unused names.
-func (r *reducer) allUnusedNames(gd *ast.GenDecl) bool {
-	for _, spec := range gd.Specs {
-		vs, _ := spec.(*ast.ValueSpec)
-		if vs == nil {
-			return false
-		}
-		for _, name := range vs.Names {
-			if len(r.useIdents[r.info.Defs[name]]) > 0 {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 func nodeType(n ast.Node) string {
