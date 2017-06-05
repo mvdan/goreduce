@@ -1,5 +1,5 @@
 package crasher
 
-func crasher() {
+func Crasher() {
 	panic(0)
 }

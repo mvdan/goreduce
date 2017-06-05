@@ -25,7 +25,7 @@ var (
 	mainTmpl = template.Must(template.New("main").Parse(`package main
 
 func main() {
-	{{ . }}()
+	{{ . }}
 }
 `))
 	rawPrinter = printer.Config{Mode: printer.RawFormat}
@@ -71,7 +71,7 @@ type reducer struct {
 
 var errNoReduction = fmt.Errorf("could not reduce program")
 
-func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) error {
+func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error {
 	r := &reducer{
 		dir:    dir,
 		logOut: logOut,
@@ -100,8 +100,7 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	r.origFset = token.NewFileSet()
 	parser.ParseDir(r.origFset, r.dir, nil, 0)
 	tfnames := make([]string, 0, len(r.pkg.Files)+1)
-	foundFunc := false
-	r.toRun = funcName != ""
+	r.toRun = runStr != ""
 	r.pkgName = r.pkg.Name
 	if r.toRun {
 		r.pkgName = "main"
@@ -109,21 +108,19 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 
 	var origMain *ast.FuncDecl
 	r.openFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
+	for _, file := range r.pkg.Files {
+		// TODO: work with any files
+		r.file = file
+	}
 	for fpath, file := range r.pkg.Files {
-		if !foundFunc {
-			if fd := findFunc(file, funcName); fd != nil {
-				r.file = file
-				foundFunc = true
-			}
-		}
 		r.files = append(r.files, file)
 		tfname := filepath.Join(tdir, filepath.Base(fpath))
 		f, err := os.Create(tfname)
 		if err != nil {
 			return err
 		}
-		if r.toRun && funcName != "main" {
-			if fd := delFunc(file, "main"); fd != nil && file == r.file {
+		if r.toRun && runStr != "main" {
+			if fd := delFunc(file, "main"); fd != nil && r.file == file {
 				origMain = fd
 			}
 			file.Name.Name = "main"
@@ -135,21 +132,13 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 		defer f.Close()
 		tfnames = append(tfnames, tfname)
 	}
-	if !foundFunc {
-		if r.toRun {
-			return fmt.Errorf("top-level func %s does not exist", funcName)
-		}
-		for _, file := range r.pkg.Files {
-			r.file = file
-		}
-	}
-	if r.toRun && funcName != "main" {
+	if r.toRun && runStr != "main" {
 		mfname := filepath.Join(tdir, "goreduce_main.go")
 		mf, err := os.Create(mfname)
 		if err != nil {
 			return err
 		}
-		if err := mainTmpl.Execute(mf, funcName); err != nil {
+		if err := mainTmpl.Execute(mf, runStr); err != nil {
 			return err
 		}
 		if err := mf.Close(); err != nil {

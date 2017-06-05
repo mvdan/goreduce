@@ -1,5 +1,5 @@
-package main
+package crasher
 
-func main() {
+func Crasher() {
 	println([][]int{}[0][0])
 }

@@ -20,7 +20,7 @@ func Crasher() {
 }
 ```
 
-	goreduce -match 'index out of range' -call Crasher .
+	goreduce -match 'index out of range' -run='Crasher()' .
 
 ```
 func Crasher() {

@@ -59,10 +59,10 @@ func testReduction(name string) func(*testing.T) {
 		defer ioutil.WriteFile(filepath.Join(dir, "src.go"), orig, 0644)
 		want := readFile(t, dir, "src.go.min")
 		match := strings.TrimRight(readFile(t, dir, "match"), "\n")
-		call := strings.TrimRight(readFile(t, dir, "call"), "\n")
+		run := strings.TrimRight(readFile(t, dir, "run"), "\n")
 		impPath := "./testdata/" + name
 		var buf bytes.Buffer
-		if err := reduce(impPath, call, match, &buf); err != nil {
+		if err := reduce(impPath, run, match, &buf); err != nil {
 			t.Fatal(err)
 		}
 		got := readFile(t, dir, "src.go")
@@ -135,10 +135,10 @@ func TestReduceErrs(t *testing.T) {
 		dir, funcName, match string
 		errCont              string
 	}{
-		{"missing-dir", "fn", "[", "missing closing ]"},
-		{"missing-dir", "fn", ".", "no such file"},
-		{"testdata/remove-stmt", "missing-fn", ".", "top-level func"},
-		{"testdata/remove-stmt", "Crasher", "no-match", "does not match"},
+		{"missing-dir", "main", "[", "missing closing ]"},
+		{"missing-dir", "main", ".", "no such file"},
+		//{"testdata/remove-stmt", "missingfn()", ".", "top-level func"},
+		{"testdata/remove-stmt", "Crasher()", "no-match", "does not match"},
 	}
 	for _, tc := range tests {
 		err := reduce(tc.dir, tc.funcName, tc.match, ioutil.Discard)

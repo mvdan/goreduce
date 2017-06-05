@@ -1,8 +1,8 @@
-package main
+package crasher
 
 var a = "foo"
 
-func main() {
+func Crasher() {
 	_ = a[5]
 }
 
