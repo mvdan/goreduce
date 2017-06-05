@@ -32,6 +32,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 		undo := r.removeSpec(x)
 		if r.okChange() {
+			r.mergeLines(x.Pos(), x.End()+1)
 			gd := r.parents[x].(*ast.GenDecl)
 			if gd.Tok == token.CONST {
 				r.logChange(x, "removed const decl")
@@ -206,6 +207,13 @@ func (r *reducer) removeSpec(spec ast.Spec) (undo func()) {
 			break
 		}
 	}
+	if ds, _ := r.parents[gd].(*ast.DeclStmt); ds != nil {
+		undo := r.replaceStmts(ds, nil)
+		return func() {
+			gd.Specs = oldSpecs
+			undo()
+		}
+	}
 	f := r.parents[gd].(*ast.File)
 	oldDecls := f.Decls
 	if len(gd.Specs) == 0 { // remove decl too
@@ -229,6 +237,8 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 	for i, stmt := range orig {
 		// discard those that will likely break compilation
 		switch x := stmt.(type) {
+		case *ast.DeclStmt:
+			continue
 		case *ast.AssignStmt:
 			if x.Tok == token.DEFINE { // :=
 				continue
@@ -501,13 +511,11 @@ func (r *reducer) canReplaceStmts(old ast.Stmt) bool {
 	}
 }
 
-func (r *reducer) replacedStmts(old ast.Stmt, with []ast.Stmt) bool {
+func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) (undo func()) {
 	var stmts *[]ast.Stmt
 	switch x := r.parents[old].(type) {
 	case *ast.BlockStmt:
 		stmts = &x.List
-	default: // e.g. a func body, cannot inline
-		return false
 	}
 	orig := *stmts
 	i := 0
@@ -521,6 +529,11 @@ func (r *reducer) replacedStmts(old ast.Stmt, with []ast.Stmt) bool {
 	l = append(l, with...)
 	l = append(l, orig[i+1:]...)
 	*stmts = l
+	return func() { *stmts = orig }
+}
+
+func (r *reducer) replacedStmts(old ast.Stmt, with []ast.Stmt) bool {
+	undo := r.replaceStmts(old, with)
 	if r.okChange() {
 		r.mergeLines(old.Pos(), with[0].Pos())
 		r.mergeLines(with[len(with)-1].End(), old.End())
@@ -530,7 +543,7 @@ func (r *reducer) replacedStmts(old ast.Stmt, with []ast.Stmt) bool {
 		}
 		return true
 	}
-	*stmts = orig
+	undo()
 	return false
 }
 

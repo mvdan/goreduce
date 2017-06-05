@@ -1,2 +1,2 @@
-src.go:5: DeclStmt removed (1 try)
+src.go:5: removed var decl (1 try)
 gave up after 0 final tries
