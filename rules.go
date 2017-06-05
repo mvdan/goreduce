@@ -82,6 +82,10 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	case *ast.IfStmt:
 		if len(x.Body.List) > 0 {
 			undo := r.afterDelete(x.Init, x.Cond, x.Else)
+			if r.replaceStmts(x, x.Body.List) {
+				r.logChange(x, "if a { b } -> b")
+				break
+			}
 			if r.changeStmt(x.Body) {
 				r.logChange(x, "if a { b } -> { b }")
 				break
@@ -89,7 +93,15 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			undo()
 		}
 		if x.Else != nil {
+			bl, _ := x.Else.(*ast.BlockStmt)
+			if bl != nil && len(bl.List) < 1 {
+				break
+			}
 			undo := r.afterDelete(x.Init, x.Cond, x.Body)
+			if bl != nil && r.replaceStmts(x, bl.List) {
+				r.logChange(x, "if a {...} else { c } -> c")
+				break
+			}
 			if r.changeStmt(x.Else) {
 				r.logChange(x, "if a {...} else c -> c")
 				break

@@ -1,3 +1,2 @@
-src.go:4: if a {...} else c -> c (1 tries)
-src.go:5: block inlined (1 tries)
+src.go:4: if a {...} else { c } -> c (1 tries)
 gave up after 0 final tries
