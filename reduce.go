@@ -43,6 +43,7 @@ type reducer struct {
 	pkg      *ast.Package
 	files    []*ast.File
 	file     *ast.File
+	pkgName  string
 
 	tconf types.Config
 	info  *types.Info
@@ -101,6 +102,11 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 	tfnames := make([]string, 0, len(r.pkg.Files)+1)
 	foundFunc := false
 	r.toRun = funcName != ""
+	r.pkgName = r.pkg.Name
+	if r.toRun {
+		r.pkgName = "main"
+	}
+
 	var origMain *ast.FuncDecl
 	r.openFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
 	for fpath, file := range r.pkg.Files {
@@ -292,7 +298,7 @@ func (r *reducer) fillObjs() {
 	}
 	r.useIdents = make(map[types.Object][]*ast.Ident, len(r.info.Uses)/2)
 	for id, obj := range r.info.Uses {
-		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != "main" {
+		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkgName {
 			// builtin or declared outside of our pkg
 			continue
 		}

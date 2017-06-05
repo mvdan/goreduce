@@ -192,6 +192,34 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if r.changedStmt(&ast.ExprStmt{X: x.Call}) {
 			r.logChange(x, "defer a() -> a()")
 		}
+	case *ast.ExprStmt:
+		ce, _ := x.X.(*ast.CallExpr)
+		if ce == nil {
+			break
+		}
+		id, _ := ce.Fun.(*ast.Ident)
+		if id == nil {
+			break
+		}
+		obj := r.info.Uses[id]
+		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkgName {
+			break
+		}
+		declId := r.revDefs[obj]
+		fd := r.parents[declId].(*ast.FuncDecl)
+		if fd.Body == nil {
+			break // assembly?
+		}
+		if fd.Type.Params != nil && len(fd.Type.Params.List) > 0 {
+			break
+		}
+		if fd.Type.Results != nil && len(fd.Type.Results.List) > 0 {
+			break
+		}
+		r.afterDelete(x)
+		if r.changedStmt(fd.Body) {
+			r.logChange(x, "inlined call")
+		}
 	}
 	return true
 }

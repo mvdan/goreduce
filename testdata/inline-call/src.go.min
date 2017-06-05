@@ -1,0 +1,8 @@
+package crasher
+
+func Crasher() {
+	panic(0)
+}
+func fn() {
+	panic(0)
+}
