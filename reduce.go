@@ -57,7 +57,7 @@ type reducer struct {
 	dstBuf *bytes.Buffer
 	toRun  bool
 
-	openFiles map[*ast.File]*os.File
+	tmpFiles map[*ast.File]*os.File
 
 	tries     int
 	didChange bool
@@ -107,11 +107,7 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 	}
 
 	var origMain *ast.FuncDecl
-	r.openFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
-	for _, file := range r.pkg.Files {
-		// TODO: work with any files
-		r.file = file
-	}
+	r.tmpFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
 	for fpath, file := range r.pkg.Files {
 		r.files = append(r.files, file)
 		tfname := filepath.Join(tdir, filepath.Base(fpath))
@@ -120,7 +116,7 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 			return err
 		}
 		if r.toRun && runStr != "main" {
-			if fd := delFunc(file, "main"); fd != nil && r.file == file {
+			if fd := delFunc(file, "main"); fd != nil {
 				origMain = fd
 			}
 			file.Name.Name = "main"
@@ -128,7 +124,7 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 		if err := rawPrinter.Fprint(f, r.fset, file); err != nil {
 			return err
 		}
-		r.openFiles[file] = f
+		r.tmpFiles[file] = f
 		defer f.Close()
 		tfnames = append(tfnames, tfname)
 	}
@@ -172,19 +168,25 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 	if anyChanges := r.reduceLoop(); !anyChanges {
 		return errNoReduction
 	}
-	fname := r.fset.Position(r.file.Pos()).Filename
-	f, err := os.Create(fname)
-	if err != nil {
-		return err
+	for astFile := range r.tmpFiles {
+		astFile.Name.Name = r.pkg.Name
+		fname := r.fset.Position(astFile.Pos()).Filename
+		if origMain != nil &&
+			r.fset.Position(origMain.Pos()).Filename == fname {
+			astFile.Decls = append(astFile.Decls, origMain)
+		}
+		f, err := os.Create(fname)
+		if err != nil {
+			return err
+		}
+		if err := printer.Fprint(f, r.fset, astFile); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
 	}
-	r.file.Name.Name = r.pkg.Name
-	if origMain != nil {
-		r.file.Decls = append(r.file.Decls, origMain)
-	}
-	if err := printer.Fprint(f, r.fset, r.file); err != nil {
-		return err
-	}
-	return f.Close()
+	return nil
 }
 
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
@@ -221,12 +223,11 @@ func (r *reducer) okChangeNoUndo() bool {
 		return false
 	}
 	newSrc := r.dstBuf.String()
-	// TODO: unique per file?
 	if r.tried[newSrc] {
 		return false
 	}
 	r.tried[newSrc] = true
-	f := r.openFiles[r.file]
+	f := r.tmpFiles[r.file]
 	if err := f.Truncate(0); err != nil {
 		return false
 	}

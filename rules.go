@@ -19,6 +19,8 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		return false
 	}
 	switch x := v.(type) {
+	case *ast.File:
+		r.file = x
 	case *ast.ValueSpec:
 		for _, name := range x.Names {
 			if ast.IsExported(name.Name) {
