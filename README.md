@@ -42,23 +42,6 @@ And for compiler crashes:
 
 ### Rules
 
-These are tested one at a time. If any of them makes the regular
-expression still match, it's left in place.
-
-| Summary              | Before              | After         |
-| -------------------- | ------------------- | ------------- |
-| Remove statement     | `a; b`              | `a` or `b`    |
-| Inline block         | `{ a }`             | `a`           |
-| Bypass to if/else    | `if a { b } else c` | `b` or `c`    |
-| Bypass to defer call | `defer a()`         | `a()`         |
-| Bypass to go call    | `go a()`            | `a()`         |
-| Zero lit values      | `123, "foo"`        | `0, ""`       |
-| Inline const         | `const c = 0; a(c)` | `a(0)`        |
-| Inline var           | `v := false; a(v)`  | `a(false)`    |
-| Empty composite lits | `T{a, b}`           | `T{}`         |
-| Reduce indexes       | `a[1]`              | `a`           |
-| Reduce slices        | `a[:2]`             | `a` or `a[:]` |
-| Remove binary parts  | `a + b`, `a && b`   | `a` or `b`    |
-| Remove unary op      | `-a`, `!a`          | `a`           |
-| Bypass star          | `*a`                | `a`           |
-| Bypass paren         | `(a)`               | `a`           |
+These are changes made to the AST - single steps towards reducing a
+program. They go from removing a statement to inling a variable and
+anything in between. See `rules.go`.

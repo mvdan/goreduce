@@ -13,8 +13,6 @@ import (
 	"strings"
 )
 
-// TODO: use x/tools/go/ssa?
-
 // uses interface{} instead of ast.Node for node slices
 func (r *reducer) reduceNode(v interface{}) bool {
 	if r.didChange {
