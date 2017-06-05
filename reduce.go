@@ -106,7 +106,7 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 		r.pkgName = "main"
 	}
 
-	var origMain *ast.FuncDecl
+	var restoreMain func()
 	r.tmpFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
 	for fpath, file := range r.pkg.Files {
 		r.files = append(r.files, file)
@@ -116,8 +116,8 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 			return err
 		}
 		if r.toRun && runStr != "main" {
-			if fd := delFunc(file, "main"); fd != nil {
-				origMain = fd
+			if undo := delFunc(file, "main"); undo != nil {
+				restoreMain = undo
 			}
 			file.Name.Name = "main"
 		}
@@ -168,13 +168,12 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 	if anyChanges := r.reduceLoop(); !anyChanges {
 		return errNoReduction
 	}
+	if restoreMain != nil {
+		restoreMain()
+	}
 	for astFile := range r.tmpFiles {
 		astFile.Name.Name = r.pkg.Name
 		fname := r.fset.Position(astFile.Pos()).Filename
-		if origMain != nil &&
-			r.fset.Position(origMain.Pos()).Filename == fname {
-			astFile.Decls = append(astFile.Decls, origMain)
-		}
 		f, err := os.Create(fname)
 		if err != nil {
 			return err
@@ -320,12 +319,13 @@ func findFunc(file *ast.File, name string) *ast.FuncDecl {
 	return nil
 }
 
-func delFunc(file *ast.File, name string) *ast.FuncDecl {
+func delFunc(file *ast.File, name string) (undo func()) {
+	oldDecls := file.Decls
 	for i, decl := range file.Decls {
 		fd, _ := decl.(*ast.FuncDecl)
 		if fd != nil && fd.Name.Name == name {
 			file.Decls = append(file.Decls[:i], file.Decls[i+1:]...)
-			return fd
+			return func() { file.Decls = oldDecls }
 		}
 	}
 	return nil

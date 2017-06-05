@@ -1,3 +1,4 @@
 package crasher
 
-func main() {}
+func main() {
+}
