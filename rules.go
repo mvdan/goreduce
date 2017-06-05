@@ -522,6 +522,9 @@ func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) bool {
 	l = append(l, orig[i+1:]...)
 	*stmts = l
 	if r.okChange() {
+		for _, stmt := range with {
+			r.parents[stmt] = r.parents[old]
+		}
 		return true
 	}
 	*stmts = orig
