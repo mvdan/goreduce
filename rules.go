@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -605,6 +606,23 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 		r.logChange(sl, "a[b:] -> a")
 		return
 	}
+	show := func(sl *ast.SliceExpr) string {
+		buf := bytes.NewBufferString("a[")
+		if sl.Low != nil {
+			buf.WriteByte('l')
+		}
+		buf.WriteByte(':')
+		if sl.High != nil {
+			buf.WriteByte('h')
+		}
+		if sl.Slice3 {
+			buf.WriteByte(':')
+			buf.WriteByte('m')
+		}
+		buf.WriteByte(']')
+		return buf.String()
+	}
+	origShow := show(sl)
 	for i, expr := range [...]*ast.Expr{&sl.Max, &sl.High, &sl.Low} {
 		orig := *expr
 		if orig == nil {
@@ -615,14 +633,7 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 		}
 		r.afterDelete(orig)
 		if *expr = nil; r.okChange() {
-			switch i {
-			case 0:
-				r.logChange(orig, "a[b:c:d] -> a[b:c]")
-			case 1:
-				r.logChange(orig, "a[b:c] -> a[b:]")
-			case 2:
-				r.logChange(orig, "a[b:c] -> a[:c]")
-			}
+			r.logChange(orig, "%s -> %s", origShow, show(sl))
 			return
 		}
 		if i == 0 {
