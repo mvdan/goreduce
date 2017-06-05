@@ -135,8 +135,8 @@ func reduce(dir, funcName, match string, logOut io.Writer, bflags ...string) err
 			r.file = file
 		}
 	}
-	mfname := filepath.Join(tdir, "goreduce_main.go")
 	if r.toRun && funcName != "main" {
+		mfname := filepath.Join(tdir, "goreduce_main.go")
 		mf, err := os.Create(mfname)
 		if err != nil {
 			return err

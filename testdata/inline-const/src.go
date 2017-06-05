@@ -1,8 +1,7 @@
 package crasher
 
-const c = 0
+const msg = "panic message"
 
 func Crasher() {
-	a := ""
-	_ = a[c]
+	panic(msg)
 }

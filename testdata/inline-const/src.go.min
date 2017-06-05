@@ -1,6 +1,6 @@
 package crasher
 
 func Crasher() {
-	a := ""
-	_ = a[0]
+	panic("panic message",
+	)
 }
