@@ -522,6 +522,8 @@ func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) bool {
 	l = append(l, orig[i+1:]...)
 	*stmts = l
 	if r.okChange() {
+		r.mergeLines(old.Pos(), with[0].Pos())
+		r.mergeLines(with[len(with)-1].End(), old.End())
 		for _, stmt := range with {
 			r.parents[stmt] = r.parents[old]
 		}
