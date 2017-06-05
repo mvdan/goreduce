@@ -1,0 +1,5 @@
+package crasher
+
+func Crasher() int {
+	panic(0)
+}

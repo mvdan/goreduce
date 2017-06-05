@@ -2,6 +2,6 @@ package crasher
 
 // Crasher just crashes.
 func Crasher() {
-	println("foo")
+	var _ = "foo"
 	panic(0)
 }
