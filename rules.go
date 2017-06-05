@@ -302,10 +302,28 @@ func (r *reducer) mergeLines(start, end token.Pos) {
 	}
 }
 
-func setPos(n ast.Node, pos token.Pos) {
-	switch x := n.(type) {
+func setPos(node ast.Node, pos token.Pos) {
+	switch x := node.(type) {
 	case *ast.BasicLit:
 		x.ValuePos = pos
+	case *ast.Ident:
+		x.NamePos = pos
+	case *ast.StarExpr:
+		x.Star = pos
+	case *ast.IndexExpr:
+		setPos(x.X, pos)
+	case *ast.ExprStmt:
+		setPos(x.X, pos)
+	case *ast.CompositeLit:
+		if x.Type != nil {
+			setPos(x.Type, pos)
+		} else {
+			x.Lbrace = pos
+		}
+	case *ast.CallExpr:
+		setPos(x.Fun, pos)
+	case *ast.ArrayType:
+		x.Lbrack = pos
 	}
 }
 
@@ -482,6 +500,7 @@ func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 	}
 	orig := *r.stmt
 	if *r.stmt = stmt; r.okChange() {
+		setPos(stmt, orig.Pos())
 		r.parents[stmt] = r.parents[orig]
 		return true
 	}
@@ -534,6 +553,7 @@ func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) bool {
 	if r.okChange() {
 		r.mergeLines(old.Pos(), with[0].Pos())
 		r.mergeLines(with[len(with)-1].End(), old.End())
+		setPos(with[0], old.Pos())
 		for _, stmt := range with {
 			r.parents[stmt] = r.parents[old]
 		}
