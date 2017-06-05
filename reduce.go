@@ -61,7 +61,7 @@ type reducer struct {
 	tries     int
 	didChange bool
 
-	deleteUndo func()
+	deleteKeepUnchanged func()
 
 	tried map[string]bool
 
@@ -253,9 +253,9 @@ func (r *reducer) okChange() bool {
 	if r.okChangeNoUndo() {
 		return true
 	}
-	if r.deleteUndo != nil {
-		r.deleteUndo()
-		r.deleteUndo = nil
+	if r.deleteKeepUnchanged != nil {
+		r.deleteKeepUnchanged()
+		r.deleteKeepUnchanged = nil
 	}
 	return false
 }

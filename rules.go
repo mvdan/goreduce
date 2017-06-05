@@ -417,7 +417,10 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 			declIdent.Name = "_"
 		}
 	}
-	r.deleteUndo = func() {
+	if len(imps)+len(vars) == 0 {
+		return
+	}
+	r.deleteKeepUnchanged = func() {
 		for _, imp := range imps {
 			// go/types doesn't treat an empty name
 			// literal the same way as no literal
@@ -556,6 +559,7 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 }
 
 func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
+	r.afterDelete(sl.Low, sl.High, sl.Max)
 	if r.changeExpr(sl.X) {
 		r.logChange(sl, "a[b:] -> a")
 		return
@@ -572,6 +576,7 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 		if i == 0 {
 			sl.Slice3 = false
 		}
+		r.afterDelete(orig)
 		if *expr = nil; r.okChange() {
 			switch i {
 			case 0:
