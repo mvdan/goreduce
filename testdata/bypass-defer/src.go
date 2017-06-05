@@ -1,5 +1,5 @@
 package crasher
 
 func Crasher() {
-	defer panic("foocrash")
+	defer panic(0)
 }

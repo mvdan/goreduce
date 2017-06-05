@@ -1,6 +1,6 @@
 package crasher
 
-const msg = "panic message"
+const msg = 0
 
 func Crasher() {
 	panic(msg)

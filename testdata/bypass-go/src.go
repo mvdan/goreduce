@@ -1,6 +1,6 @@
 package crasher
 
 func Crasher() {
-	go panic("panic message")
+	go panic(0)
 	select {}
 }
