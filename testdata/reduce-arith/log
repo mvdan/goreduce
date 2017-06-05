@@ -1,4 +1,0 @@
-src.go:5: (a) -> a (4 tries)
-src.go:5: a + b -> a (4 tries)
-src.go:5: -a -> a (4 tries)
-gave up after 3 final tries
