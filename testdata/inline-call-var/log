@@ -1,0 +1,3 @@
+src.go:7: inlined call (2 tries)
+src.go:4: AssignStmt removed (1 try)
+gave up after 0 final tries

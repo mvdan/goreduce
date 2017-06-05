@@ -181,23 +181,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if ce == nil {
 			break
 		}
-		id, _ := ce.Fun.(*ast.Ident)
-		if id == nil {
-			break
-		}
-		obj := r.info.Uses[id]
-		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkgName {
-			break
-		}
-		declId := r.revDefs[obj]
-		var ftype *ast.FuncType
-		var fbody *ast.BlockStmt
-		if fd, _ := r.parents[declId].(*ast.FuncDecl); fd != nil {
-			fbody, ftype = fd.Body, fd.Type
-		} else {
-			fl := r.declIdentValue(declId).(*ast.FuncLit)
-			fbody, ftype = fl.Body, fl.Type
-		}
+		ftype, fbody := r.funcDetails(ce.Fun)
 		if fbody == nil || anyFuncControlNodes(fbody) {
 			break
 		}
@@ -213,6 +197,25 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	}
 	return true
+}
+
+func (r *reducer) funcDetails(fun ast.Expr) (*ast.FuncType, *ast.BlockStmt) {
+	switch x := fun.(type) {
+	case *ast.FuncLit:
+		return x.Type, x.Body
+	case *ast.Ident:
+		obj := r.info.Uses[x]
+		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkgName {
+			break
+		}
+		declId := r.revDefs[obj]
+		if fd, _ := r.parents[declId].(*ast.FuncDecl); fd != nil {
+			return fd.Type, fd.Body
+		}
+		fl := r.declIdentValue(declId).(*ast.FuncLit)
+		return fl.Type, fl.Body
+	}
+	return nil, nil
 }
 
 func (r *reducer) declIdentValue(id *ast.Ident) ast.Expr {

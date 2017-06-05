@@ -1,5 +1,8 @@
 package crasher
 
 func Crasher() {
-	panic(0)
+	fn := func() {
+		panic(0)
+	}
+	fn()
 }
