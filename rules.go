@@ -98,12 +98,8 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	case *ast.IfStmt:
 		if len(x.Body.List) > 0 {
 			undo := r.afterDelete(x.Init, x.Cond, x.Else)
-			if r.replaceStmts(x, x.Body.List) {
-				r.logChange(x, "if a { b } -> b")
-				break
-			}
 			if r.changeStmt(x.Body) {
-				r.logChange(x, "if a { b } -> { b }")
+				r.logChange(x, "if a { b } -> b")
 				break
 			}
 			undo()
@@ -114,10 +110,6 @@ func (r *reducer) reduceNode(v interface{}) bool {
 				break
 			}
 			undo := r.afterDelete(x.Init, x.Cond, x.Body)
-			if bl != nil && r.replaceStmts(x, bl.List) {
-				r.logChange(x, "if a {...} else { c } -> c")
-				break
-			}
 			if r.changeStmt(x.Else) {
 				r.logChange(x, "if a {...} else c -> c")
 				break
@@ -318,7 +310,7 @@ func (r *reducer) mergeLines(start, end token.Pos) {
 	}
 }
 
-func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
+func (r *reducer) adaptBlockNames(bl *ast.BlockStmt) (undo func()) {
 	type undoIdent struct {
 		id   *ast.Ident
 		name string
@@ -355,15 +347,22 @@ func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
 	for _, stmt := range bl.List {
 		ast.Inspect(stmt, fixScopeNames)
 	}
+	return func() {
+		for _, ui := range undoIdents {
+			ui.id.Name = ui.name
+		}
+	}
+}
+
+func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
+	undo := r.adaptBlockNames(bl)
 	if r.replaceStmts(bl, bl.List) {
 		r.mergeLines(bl.Pos(), bl.List[0].Pos())
 		r.mergeLines(bl.List[len(bl.List)-1].End(), bl.End())
 		r.logChange(bl, "block inlined")
 		return
 	}
-	for _, ui := range undoIdents {
-		ui.id.Name = ui.name
-	}
+	undo()
 }
 
 func (r *reducer) afterDeleteExprs(exprs []ast.Expr) (undo func()) {
@@ -472,6 +471,13 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 }
 
 func (r *reducer) changeStmt(stmt ast.Stmt) bool {
+	if bl, _ := stmt.(*ast.BlockStmt); bl != nil {
+		undo := r.adaptBlockNames(bl)
+		if r.replaceStmts(*r.stmt, bl.List) {
+			return true
+		}
+		undo()
+	}
 	orig := *r.stmt
 	if *r.stmt = stmt; r.okChange() {
 		r.parents[stmt] = r.parents[orig]
