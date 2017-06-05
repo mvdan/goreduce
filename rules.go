@@ -97,24 +97,22 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	case *ast.IfStmt:
 		if len(x.Body.List) > 0 {
-			undo := r.afterDelete(x.Init, x.Cond, x.Else)
+			r.afterDelete(x.Init, x.Cond, x.Else)
 			if r.changeStmt(x.Body) {
 				r.logChange(x, "if a { b } -> b")
 				break
 			}
-			undo()
 		}
 		if x.Else != nil {
 			bl, _ := x.Else.(*ast.BlockStmt)
 			if bl != nil && len(bl.List) < 1 {
 				break
 			}
-			undo := r.afterDelete(x.Init, x.Cond, x.Body)
+			r.afterDelete(x.Init, x.Cond, x.Body)
 			if r.changeStmt(x.Else) {
 				r.logChange(x, "if a {...} else c -> c")
 				break
 			}
-			undo()
 		}
 	case *ast.Ident:
 		obj := r.info.Uses[x]
@@ -150,7 +148,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if expr == nil {
 			break
 		}
-		undo := r.afterDelete(x)
+		r.afterDelete(x)
 		if r.changeExpr(expr) {
 			if isVar {
 				r.logChange(x, "var inlined")
@@ -159,7 +157,6 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			}
 			break
 		}
-		undo()
 	case *ast.BasicLit:
 		r.reduceLit(x)
 	case *ast.SliceExpr:
@@ -169,7 +166,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		orig := x.Elts
-		undo := r.afterDeleteExprs(x.Elts)
+		r.afterDeleteExprs(x.Elts)
 		if x.Elts = nil; r.okChange() {
 			t := "T"
 			switch x.Type.(type) {
@@ -179,32 +176,28 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			r.logChange(x, "%s{a, b} -> %s{}", t, t)
 			break
 		}
-		undo()
 		x.Elts = orig
 	case *ast.BinaryExpr:
-		undo := r.afterDelete(x.Y)
+		r.afterDelete(x.Y)
 		if r.changeExpr(x.X) {
 			r.logChange(x, "a %v b -> a", x.Op)
 			break
 		}
-		undo()
-		undo = r.afterDelete(x.X)
+		r.afterDelete(x.X)
 		if r.changeExpr(x.Y) {
 			r.logChange(x, "a %v b -> b", x.Op)
 			break
 		}
-		undo()
 	case *ast.ParenExpr:
 		if r.changeExpr(x.X) {
 			r.logChange(x, "(a) -> a")
 		}
 	case *ast.IndexExpr:
-		undo := r.afterDelete(x.Index)
+		r.afterDelete(x.Index)
 		if r.changeExpr(x.X) {
 			r.logChange(x, "a[b] -> a")
 			break
 		}
-		undo()
 	case *ast.StarExpr:
 		if r.changeExpr(x.X) {
 			r.logChange(x, "*a -> a")
@@ -257,7 +250,7 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 				continue
 			}
 		}
-		undo := r.afterDelete(stmt)
+		r.afterDelete(stmt)
 		copy(l, orig[:i])
 		copy(l[i:], orig[i+1:])
 		*list = l
@@ -266,7 +259,6 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 			r.logChange(stmt, "%s removed", nodeType(stmt))
 			return
 		}
-		undo()
 	}
 	*list = orig
 }
@@ -365,15 +357,15 @@ func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
 	undo()
 }
 
-func (r *reducer) afterDeleteExprs(exprs []ast.Expr) (undo func()) {
+func (r *reducer) afterDeleteExprs(exprs []ast.Expr) {
 	nodes := make([]ast.Node, len(exprs))
 	for i, expr := range exprs {
 		nodes[i] = expr
 	}
-	return r.afterDelete(nodes...)
+	r.afterDelete(nodes...)
 }
 
-func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
+func (r *reducer) afterDelete(nodes ...ast.Node) {
 	type redoImp struct {
 		imp  *ast.ImportSpec
 		name *ast.Ident
@@ -425,7 +417,7 @@ func (r *reducer) afterDelete(nodes ...ast.Node) (undo func()) {
 			declIdent.Name = "_"
 		}
 	}
-	return func() {
+	r.deleteUndo = func() {
 		for _, imp := range imps {
 			// go/types doesn't treat an empty name
 			// literal the same way as no literal

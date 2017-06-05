@@ -61,6 +61,8 @@ type reducer struct {
 	tries     int
 	didChange bool
 
+	deleteUndo func()
+
 	tried map[string]bool
 
 	walker
@@ -214,7 +216,7 @@ func (r *reducer) checkRun() error {
 	return nil
 }
 
-func (r *reducer) okChange() bool {
+func (r *reducer) okChangeNoUndo() bool {
 	if r.didChange {
 		return false
 	}
@@ -245,6 +247,17 @@ func (r *reducer) okChange() bool {
 	// Reduction worked
 	r.didChange = true
 	return true
+}
+
+func (r *reducer) okChange() bool {
+	if r.okChangeNoUndo() {
+		return true
+	}
+	if r.deleteUndo != nil {
+		r.deleteUndo()
+		r.deleteUndo = nil
+	}
+	return false
 }
 
 func (r *reducer) reduceLoop() (anyChanges bool) {
