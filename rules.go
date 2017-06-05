@@ -54,41 +54,18 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			x.Decls = origDecls
 		}
 	case *ast.ImportSpec:
-		name := ""
-		if x.Name != nil {
-			name = x.Name.Name
-		}
-		if name != "_" {
+		if x.Name == nil || x.Name.Name != "_" { // used
 			return false
 		}
-		// TODO: this is probably reusable elsewhere
-		gd := r.parents[x].(*ast.GenDecl)
-		oldSpecs := gd.Specs
-		for i, spec := range oldSpecs {
-			if spec == x {
-				gd.Specs = append(gd.Specs[:i], gd.Specs[i+1:]...)
-				break
-			}
-		}
-		f := r.parents[gd].(*ast.File)
-		oldDecls := f.Decls
-		if len(gd.Specs) == 0 {
-			for i, decl := range oldDecls {
-				if decl == gd {
-					f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
-					break
-				}
-			}
-		}
+		undo := r.removeSpec(x)
 		if r.okChange() {
 			r.logChange(x, "removed import")
 		} else {
-			gd.Specs = oldSpecs
-			f.Decls = oldDecls
+			undo()
 		}
 		return false
 	case *[]ast.Stmt:
-		if len(*x) == 1 {
+		if len(*x) == 1 { // we already tried removing the parent
 			break
 		}
 		r.removeStmt(x)
@@ -225,6 +202,31 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	}
 	return true
+}
+
+func (r *reducer) removeSpec(spec ast.Spec) (undo func()) {
+	gd := r.parents[spec].(*ast.GenDecl)
+	oldSpecs := gd.Specs
+	for i, sp := range oldSpecs {
+		if sp == spec {
+			gd.Specs = append(gd.Specs[:i], gd.Specs[i+1:]...)
+			break
+		}
+	}
+	f := r.parents[gd].(*ast.File)
+	oldDecls := f.Decls
+	if len(gd.Specs) == 0 { // remove decl too
+		for i, decl := range oldDecls {
+			if decl == gd {
+				f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
+				break
+			}
+		}
+	}
+	return func() {
+		gd.Specs = oldSpecs
+		f.Decls = oldDecls
+	}
 }
 
 func (r *reducer) removeStmt(list *[]ast.Stmt) {
