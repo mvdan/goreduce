@@ -7,4 +7,4 @@ func main() {
 }
 
 // inlining a would fail, make test faster
-var _ = a
+var Sink = a
