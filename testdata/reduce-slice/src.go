@@ -1,6 +1,5 @@
 package crasher
 
 func Crasher() {
-	a := ""
-	_ = a[1:2]
+	_ = []int{}[1:2]
 }
