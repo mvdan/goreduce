@@ -59,7 +59,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 		r.removeStmt(x)
 	case *ast.BlockStmt:
-		if r.canReplaceStmts(x) {
+		if r.parentStmts(x) != nil {
 			undo := r.adaptBlockNames(x)
 			if r.replacedStmts(x, x.List) {
 				r.logChange(x, "block inlined")
@@ -502,21 +502,21 @@ func (r *reducer) changedExpr(expr ast.Expr) bool {
 	return false
 }
 
-func (r *reducer) canReplaceStmts(old ast.Stmt) bool {
-	switch r.parents[old].(type) {
+func (r *reducer) parentStmts(stmt ast.Stmt) *[]ast.Stmt {
+	switch x := r.parents[stmt].(type) {
 	case *ast.BlockStmt:
-		return true
-	default: // e.g. a func body, cannot inline
-		return false
+		return &x.List
+	case *ast.CaseClause:
+		return &x.Body
+	case *ast.CommClause:
+		return &x.Body
+	default: // was e.g. a func body, cannot inline
+		return nil
 	}
 }
 
 func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) (undo func()) {
-	var stmts *[]ast.Stmt
-	switch x := r.parents[old].(type) {
-	case *ast.BlockStmt:
-		stmts = &x.List
-	}
+	stmts := r.parentStmts(old)
 	orig := *stmts
 	i := 0
 	for ; i < len(orig); i++ {
