@@ -264,7 +264,11 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 		copy(l[i:], orig[i+1:])
 		*list = l
 		if r.okChange() {
-			r.mergeLinesNode(stmt)
+			if i+i < len(orig) {
+				r.mergeLines(stmt.Pos(), orig[i+1].End())
+			} else {
+				r.mergeLines(stmt.Pos(), stmt.End()+1)
+			}
 			r.logChange(stmt, "%s removed", nodeType(stmt))
 			return
 		}
@@ -295,10 +299,6 @@ func nodeType(n ast.Node) string {
 		s = s[i+1:]
 	}
 	return s
-}
-
-func (r *reducer) mergeLinesNode(node ast.Node) {
-	r.mergeLines(node.Pos(), node.End()+1)
 }
 
 func (r *reducer) mergeLines(start, end token.Pos) {
