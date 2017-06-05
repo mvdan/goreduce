@@ -1,3 +1,2 @@
-src.go:5: a[b:] -> a (2 tries)
-src.go:5: (a) -> a (2 tries)
-gave up after 3 final tries
+src.go:4: a[b:] -> a (1 tries)
+gave up after 1 final tries

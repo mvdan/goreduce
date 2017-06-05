@@ -5,3 +5,6 @@ var a = ""
 func main() {
 	_ = a[0]
 }
+
+// inlining a would fail, make test faster
+var _ = a

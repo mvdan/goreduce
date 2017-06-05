@@ -1,6 +1,5 @@
 package main
 
 func main() {
-	var a *string
-	println((*a)[0])
+	println([][]int{}[0][0])
 }
