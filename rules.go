@@ -114,6 +114,16 @@ func (r *reducer) reduceNode(v interface{}) bool {
 				break
 			}
 		}
+	case *ast.SwitchStmt:
+		if x.Init != nil || len(x.Body.List) != 1 {
+			break
+		}
+		cs := x.Body.List[0].(*ast.CaseClause)
+		if r.replaceStmts(x, cs.Body) {
+			r.mergeLines(x.Pos(), cs.Body[0].Pos())
+			r.mergeLines(cs.Body[len(cs.Body)-1].End(), x.End())
+			r.logChange(cs, "case inlined")
+		}
 	case *ast.Ident:
 		obj := r.info.Uses[x]
 		if obj == nil { // declaration of ident, not its use
@@ -599,11 +609,7 @@ func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 		r.logChange(sl, "a[b:] -> a")
 		return
 	}
-	for i, expr := range [...]*ast.Expr{
-		&sl.Max,
-		&sl.High,
-		&sl.Low,
-	} {
+	for i, expr := range [...]*ast.Expr{&sl.Max, &sl.High, &sl.Low} {
 		orig := *expr
 		if orig == nil {
 			continue
