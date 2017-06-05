@@ -207,8 +207,8 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 		declId := r.revDefs[obj]
 		fd := r.parents[declId].(*ast.FuncDecl)
-		if fd.Body == nil {
-			break // assembly?
+		if fd.Body == nil || anyFuncControlNodes(fd.Body) {
+			break
 		}
 		if fd.Type.Params != nil && len(fd.Type.Params.List) > 0 {
 			break
@@ -222,6 +222,18 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	}
 	return true
+}
+
+func anyFuncControlNodes(bl *ast.BlockStmt) (any bool) {
+	ast.Inspect(bl, func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.ReturnStmt, *ast.DeferStmt:
+			any = true
+			return false
+		}
+		return true
+	})
+	return
 }
 
 func (r *reducer) removeSpec(spec ast.Spec) (undo func()) {
