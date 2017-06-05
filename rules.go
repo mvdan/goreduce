@@ -59,12 +59,17 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		r.removeStmt(x)
 	case *ast.BlockStmt:
 		if r.canReplaceStmts(x) {
-			r.inlineBlock(x)
+			undo := r.adaptBlockNames(x)
+			if r.replacedStmts(x, x.List) {
+				r.logChange(x, "block inlined")
+				break
+			}
+			undo()
 		}
 	case *ast.IfStmt:
 		if len(x.Body.List) > 0 {
 			r.afterDelete(x.Init, x.Cond, x.Else)
-			if r.changeStmt(x.Body) {
+			if r.changedStmt(x.Body) {
 				r.logChange(x, "if a { b } -> b")
 				break
 			}
@@ -75,7 +80,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 				break
 			}
 			r.afterDelete(x.Init, x.Cond, x.Body)
-			if r.changeStmt(x.Else) {
+			if r.changedStmt(x.Else) {
 				r.logChange(x, "if a {...} else c -> c")
 				break
 			}
@@ -85,7 +90,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		cs := x.Body.List[0].(*ast.CaseClause)
-		if r.replaceStmts(x, cs.Body) {
+		if r.replacedStmts(x, cs.Body) {
 			r.logChange(cs, "case inlined")
 		}
 	case *ast.Ident:
@@ -123,7 +128,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		r.afterDelete(x)
-		if r.changeExpr(expr) {
+		if r.changedExpr(expr) {
 			if isVar {
 				r.logChange(x, "var inlined")
 			} else {
@@ -153,39 +158,39 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		x.Elts = orig
 	case *ast.BinaryExpr:
 		r.afterDelete(x.Y)
-		if r.changeExpr(x.X) {
+		if r.changedExpr(x.X) {
 			r.logChange(x, "a %v b -> a", x.Op)
 			break
 		}
 		r.afterDelete(x.X)
-		if r.changeExpr(x.Y) {
+		if r.changedExpr(x.Y) {
 			r.logChange(x, "a %v b -> b", x.Op)
 			break
 		}
 	case *ast.ParenExpr:
-		if r.changeExpr(x.X) {
+		if r.changedExpr(x.X) {
 			r.logChange(x, "(a) -> a")
 		}
 	case *ast.IndexExpr:
 		r.afterDelete(x.Index)
-		if r.changeExpr(x.X) {
+		if r.changedExpr(x.X) {
 			r.logChange(x, "a[b] -> a")
 			break
 		}
 	case *ast.StarExpr:
-		if r.changeExpr(x.X) {
+		if r.changedExpr(x.X) {
 			r.logChange(x, "*a -> a")
 		}
 	case *ast.UnaryExpr:
-		if r.changeExpr(x.X) {
+		if r.changedExpr(x.X) {
 			r.logChange(x, "%va -> a", x.Op)
 		}
 	case *ast.GoStmt:
-		if r.changeStmt(&ast.ExprStmt{X: x.Call}) {
+		if r.changedStmt(&ast.ExprStmt{X: x.Call}) {
 			r.logChange(x, "go a() -> a()")
 		}
 	case *ast.DeferStmt:
-		if r.changeStmt(&ast.ExprStmt{X: x.Call}) {
+		if r.changedStmt(&ast.ExprStmt{X: x.Call}) {
 			r.logChange(x, "defer a() -> a()")
 		}
 	}
@@ -348,15 +353,6 @@ func (r *reducer) adaptBlockNames(bl *ast.BlockStmt) (undo func()) {
 	}
 }
 
-func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
-	undo := r.adaptBlockNames(bl)
-	if r.replaceStmts(bl, bl.List) {
-		r.logChange(bl, "block inlined")
-		return
-	}
-	undo()
-}
-
 func (r *reducer) afterDeleteExprs(exprs []ast.Expr) {
 	nodes := make([]ast.Node, len(exprs))
 	for i, expr := range exprs {
@@ -465,10 +461,10 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 	return
 }
 
-func (r *reducer) changeStmt(stmt ast.Stmt) bool {
+func (r *reducer) changedStmt(stmt ast.Stmt) bool {
 	if bl, _ := stmt.(*ast.BlockStmt); bl != nil {
 		undo := r.adaptBlockNames(bl)
-		if r.replaceStmts(*r.stmt, bl.List) {
+		if r.replacedStmts(*r.stmt, bl.List) {
 			return true
 		}
 		undo()
@@ -483,7 +479,7 @@ func (r *reducer) changeStmt(stmt ast.Stmt) bool {
 	return false
 }
 
-func (r *reducer) changeExpr(expr ast.Expr) bool {
+func (r *reducer) changedExpr(expr ast.Expr) bool {
 	orig := *r.expr
 	if *r.expr = expr; r.okChange() {
 		setPos(expr, orig.Pos())
@@ -505,7 +501,7 @@ func (r *reducer) canReplaceStmts(old ast.Stmt) bool {
 	}
 }
 
-func (r *reducer) replaceStmts(old ast.Stmt, with []ast.Stmt) bool {
+func (r *reducer) replacedStmts(old ast.Stmt, with []ast.Stmt) bool {
 	var stmts *[]ast.Stmt
 	switch x := r.parents[old].(type) {
 	case *ast.BlockStmt:
@@ -570,7 +566,7 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 
 func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 	r.afterDelete(sl.Low, sl.High, sl.Max)
-	if r.changeExpr(sl.X) {
+	if r.changedExpr(sl.X) {
 		r.logChange(sl, "a[b:] -> a")
 		return
 	}
