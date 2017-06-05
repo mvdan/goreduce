@@ -120,8 +120,6 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 		cs := x.Body.List[0].(*ast.CaseClause)
 		if r.replaceStmts(x, cs.Body) {
-			r.mergeLines(x.Pos(), cs.Body[0].Pos())
-			r.mergeLines(cs.Body[len(cs.Body)-1].End(), x.End())
 			r.logChange(cs, "case inlined")
 		}
 	case *ast.Ident:
@@ -384,8 +382,6 @@ func (r *reducer) adaptBlockNames(bl *ast.BlockStmt) (undo func()) {
 func (r *reducer) inlineBlock(bl *ast.BlockStmt) {
 	undo := r.adaptBlockNames(bl)
 	if r.replaceStmts(bl, bl.List) {
-		r.mergeLines(bl.Pos(), bl.List[0].Pos())
-		r.mergeLines(bl.List[len(bl.List)-1].End(), bl.End())
 		r.logChange(bl, "block inlined")
 		return
 	}
