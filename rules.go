@@ -250,6 +250,21 @@ func anyFuncControlNodes(bl *ast.BlockStmt) (any bool) {
 	return
 }
 
+func (r *reducer) removeDecl(id *ast.Ident) (undo func()) {
+	switch x := r.parents[id].(type) {
+	case ast.Spec:
+		return r.removeSpec(x)
+	case *ast.AssignStmt:
+		if len(x.Lhs) != len(x.Rhs) {
+			break
+		}
+		if len(x.Lhs) == 1 {
+			return r.replaceStmts(x, nil)
+		}
+	}
+	panic("could not remove name declaration")
+}
+
 func (r *reducer) removeSpec(spec ast.Spec) (undo func()) {
 	gd := r.parents[spec].(*ast.GenDecl)
 	oldSpecs := gd.Specs
@@ -478,6 +493,7 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 				}
 			}
 			declIdent.Name = "_"
+			undos = append(undos, r.removeDecl(declIdent))
 		}
 	}
 	if len(undos) > 0 {
