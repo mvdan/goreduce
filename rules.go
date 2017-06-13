@@ -437,6 +437,8 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 	}
 	var vars []redoVar
 
+	var undos []func()
+
 	for _, obj := range r.unusedAfterDelete(nodes...) {
 		switch x := obj.(type) {
 		case *types.PkgName:
@@ -462,6 +464,8 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 					NamePos: imp.Path.Pos(),
 					Name:    "_",
 				}
+				undos = append(undos, r.removeSpec(imp))
+				break
 			}
 		case *types.Var:
 			declIdent := r.revDefs[x]
@@ -476,19 +480,25 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 			declIdent.Name = "_"
 		}
 	}
-	if len(imps)+len(vars) == 0 {
-		return
-	}
-	r.deleteKeepUnchanged = func() {
-		for _, imp := range imps {
-			// go/types doesn't treat an empty name
-			// literal the same way as no literal
-			imp.imp.Name = imp.name
+	if len(undos) > 0 {
+		r.deleteKeepUnderscore = func() {
+			for _, undo := range undos {
+				undo()
+			}
 		}
-		for _, rvar := range vars {
-			rvar.id.Name = rvar.name
-			if rvar.asgn != nil {
-				rvar.asgn.Tok = token.DEFINE
+	}
+	if len(imps)+len(vars) > 0 {
+		r.deleteKeepUnchanged = func() {
+			for _, imp := range imps {
+				// go/types doesn't treat an empty name
+				// literal the same way as no literal
+				imp.imp.Name = imp.name
+			}
+			for _, rvar := range vars {
+				rvar.id.Name = rvar.name
+				if rvar.asgn != nil {
+					rvar.asgn.Tok = token.DEFINE
+				}
 			}
 		}
 	}

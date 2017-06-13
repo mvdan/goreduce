@@ -62,7 +62,8 @@ type reducer struct {
 	tries     int
 	didChange bool
 
-	deleteKeepUnchanged func()
+	deleteKeepUnderscore func()
+	deleteKeepUnchanged  func()
 
 	tried map[string]bool
 
@@ -246,7 +247,14 @@ func (r *reducer) okChangeNoUndo() bool {
 
 func (r *reducer) okChange() bool {
 	if r.okChangeNoUndo() {
+		r.deleteKeepUnderscore = nil
+		r.deleteKeepUnchanged = nil
 		return true
+	}
+	if r.deleteKeepUnderscore != nil {
+		r.deleteKeepUnderscore()
+		r.deleteKeepUnderscore = nil
+		return r.okChange()
 	}
 	if r.deleteKeepUnchanged != nil {
 		r.deleteKeepUnchanged()
