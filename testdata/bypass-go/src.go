@@ -1,6 +1,6 @@
-package crasher
+package main
 
-func Crasher() {
+func main() {
 	go panic(0)
 	select {}
 }

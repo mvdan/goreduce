@@ -1,10 +1,10 @@
-package crasher
+package main
 
-func Crasher() int {
-	msg := 1
+func main() {
+	msg := 0
 	{
-		msg := 0
+		msg := 0.0
 		panic(msg)
 	}
-	return msg
+	panic(msg)
 }

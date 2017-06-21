@@ -1,4 +1,4 @@
-package crasher
+package main
 
 func F() {
 	switch nil.(type) {

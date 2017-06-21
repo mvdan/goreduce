@@ -1,7 +1,7 @@
-package crasher
+package main
 
 const msg = 0
 
-func Crasher() {
+func main() {
 	panic(msg)
 }

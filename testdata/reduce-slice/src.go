@@ -1,5 +1,5 @@
-package crasher
+package main
 
-func Crasher() {
+func main() {
 	_ = []int{}[1:2]
 }

@@ -11,33 +11,39 @@ import (
 
 var (
 	matchStr = flag.String("match", "", "regexp to match the output")
-	runStr   = flag.String("run", "", "code to run when reducing run-time errors")
+	shellStr = flag.String("run", "", "shell command to test reductions")
 	verbose  = flag.Bool("v", false, "log applied changes to stderr")
 
-	buildFlags = []string{"-ldflags", "-w -s"}
+	shellStrBuild = `go build -ldflags "-w -s"`
+	shellStrRun   = `go build -ldflags "-w -s" -o out && ./out`
 )
 
 func init() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
-			"Usage: goreduce -match=re [-run=stmt] dir [build flags]\n")
+			"Usage: goreduce -match=re [-run=cmd] dir\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
-Flags to pass to 'go build' can be given as extra arguments. The defaults are:
+If -run=cmd is omitted, the default for non-main packages is:
 
-  -ldflags "-w -s"
+  `+shellStrBuild+`
+
+And for main packages:
+
+  `+shellStrRun+`
+
+The shell code is run in a Bash-compatible shell interpreter. The
+package being reduced will be in its current directory.
 
 To catch a run-time error/crash entering main:
 
-  goreduce -match 'index out of range' -run=main .
+  goreduce -match 'index out of range' .
 
-Like above, but using a custom main body:
+To catch a build error/crash with custom build flags:
 
-  goreduce -match 'index out of range' -run='Crasher("foo")' .
+  goreduce -match 'internal compiler error' . 'go build -gcflags "-c=2"'
 
-To catch a build error/crash with build flags:
-
-  goreduce -match 'internal compiler error' . -gcflags '-c=2'
+Note that you may also call a script or any other program.
 `)
 	}
 	flag.Parse()
@@ -49,7 +55,7 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := reduce(args[0], *runStr, *matchStr, os.Stderr, args[1:]...); err != nil {
+	if err := reduce(args[0], *matchStr, os.Stderr, *shellStr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

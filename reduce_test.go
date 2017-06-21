@@ -59,10 +59,9 @@ func testReduction(name string) func(*testing.T) {
 		defer ioutil.WriteFile(filepath.Join(dir, "src.go"), orig, 0644)
 		want := readFile(t, dir, "src.go.min")
 		match := strings.TrimRight(readFile(t, dir, "match"), "\n")
-		run := strings.TrimRight(readFile(t, dir, "run"), "\n")
 		impPath := "./testdata/" + name
 		var buf bytes.Buffer
-		if err := reduce(impPath, run, match, &buf); err != nil {
+		if err := reduce(impPath, match, &buf, ""); err != nil {
 			t.Fatal(err)
 		}
 		got := readFile(t, dir, "src.go")
@@ -120,7 +119,7 @@ func Crasher() {
 		if err := ioutil.WriteFile("src.go", orig, 0644); err != nil {
 			b.Fatal(err)
 		}
-		err := reduce(".", "Crasher", "index out of range", ioutil.Discard)
+		err := reduce(".", "index out of range", ioutil.Discard, "")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -132,16 +131,15 @@ func TestReduceErrs(t *testing.T) {
 	fastTest = false
 	defer func() { fastTest = *fast }()
 	tests := [...]struct {
-		dir, funcName, match string
-		errCont              string
+		dir, match string
+		errCont    string
 	}{
-		{"missing-dir", "main", "[", "missing closing ]"},
-		{"missing-dir", "main", ".", "no such file"},
-		//{"testdata/remove-stmt", "missingfn()", ".", "top-level func"},
-		{"testdata/remove-stmt", "Crasher()", "no-match", "does not match"},
+		{"missing-dir", "[", "missing closing ]"},
+		{"missing-dir", ".", "no such file"},
+		{"testdata/remove-stmt", "no-match", "does not match"},
 	}
 	for _, tc := range tests {
-		err := reduce(tc.dir, tc.funcName, tc.match, ioutil.Discard)
+		err := reduce(tc.dir, tc.match, ioutil.Discard, "")
 		if err == nil || !strings.Contains(err.Error(), tc.errCont) {
 			t.Fatalf("wanted error conatining %q, got: %v",
 				tc.errCont, err)

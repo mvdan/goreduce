@@ -207,7 +207,7 @@ func (r *reducer) funcDetails(fun ast.Expr) (*ast.FuncType, *ast.BlockStmt) {
 		return x.Type, x.Body
 	case *ast.Ident:
 		obj := r.info.Uses[x]
-		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkgName {
+		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkg.Name {
 			break
 		}
 		declId := r.revDefs[obj]

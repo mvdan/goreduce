@@ -1,6 +1,5 @@
-package crasher
+package main
 
-// Crasher just crashes.
-func Crasher() {
+func main() {
 	_ = false || *(*bool)(nil)
 }

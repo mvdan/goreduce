@@ -1,7 +1,7 @@
-package crasher
+package main
 
-// Crasher just crashes.
-func Crasher() {
+// main just crashes.
+func main() {
 	var _ = "foo"
 	panic(0)
 }

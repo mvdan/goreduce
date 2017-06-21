@@ -1,6 +1,6 @@
-package crasher
+package main
 
-func Crasher() {
+func main() {
 	func() {
 		panic(0)
 	}()

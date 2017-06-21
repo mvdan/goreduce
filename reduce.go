@@ -15,35 +15,31 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"text/template"
+	"strings"
+
+	"github.com/mvdan/sh/interp"
+	"github.com/mvdan/sh/syntax"
 )
 
 var (
-	mainTmpl = template.Must(template.New("main").Parse(`package main
-
-func main() {
-	{{ . }}
-}
-`))
 	rawPrinter = printer.Config{Mode: printer.RawFormat}
 
 	fastTest = false
 )
 
 type reducer struct {
-	dir     string
-	logOut  io.Writer
-	matchRe *regexp.Regexp
+	tdir      string
+	logOut    io.Writer
+	matchRe   *regexp.Regexp
+	shellProg *syntax.File
 
 	fset     *token.FileSet
 	origFset *token.FileSet
 	pkg      *ast.Package
 	files    []*ast.File
 	file     *ast.File
-	pkgName  string
 
 	tconf types.Config
 	info  *types.Info
@@ -52,10 +48,7 @@ type reducer struct {
 	revDefs   map[types.Object]*ast.Ident
 	parents   map[ast.Node]ast.Node
 
-	outBin string
-	goArgs []string
 	dstBuf *bytes.Buffer
-	toRun  bool
 
 	tmpFiles map[*ast.File]*os.File
 
@@ -72,23 +65,23 @@ type reducer struct {
 
 var errNoReduction = fmt.Errorf("could not reduce program")
 
-func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error {
+func reduce(dir, match string, logOut io.Writer, shellStr string) error {
 	r := &reducer{
-		dir:    dir,
+		tdir:   dir,
 		logOut: logOut,
 		tried:  make(map[string]bool, 16),
 		dstBuf: bytes.NewBuffer(nil),
 	}
-	tdir, err := ioutil.TempDir("", "goreduce")
-	if err != nil {
+	var err error
+	if r.tdir, err = ioutil.TempDir("", "goreduce"); err != nil {
 		return err
 	}
-	defer os.RemoveAll(tdir)
+	defer os.RemoveAll(r.tdir)
 	if r.matchRe, err = regexp.Compile(match); err != nil {
 		return err
 	}
 	r.fset = token.NewFileSet()
-	pkgs, err := parser.ParseDir(r.fset, r.dir, nil, parser.ParseComments)
+	pkgs, err := parser.ParseDir(r.fset, dir, nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}
@@ -98,29 +91,29 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 	for _, pkg := range pkgs {
 		r.pkg = pkg
 	}
-	r.origFset = token.NewFileSet()
-	parser.ParseDir(r.origFset, r.dir, nil, 0)
-	tfnames := make([]string, 0, len(r.pkg.Files)+1)
-	r.toRun = runStr != ""
-	r.pkgName = r.pkg.Name
-	if r.toRun {
-		r.pkgName = "main"
+	switch {
+	case shellStr != "":
+	case r.pkg.Name == "main":
+		shellStr = shellStrRun
+	default:
+		shellStr = shellStrBuild
 	}
+	r.shellProg, err = syntax.NewParser().Parse(strings.NewReader(shellStr), "")
+	if err != nil {
+		return err
+	}
+	r.origFset = token.NewFileSet()
+	parser.ParseDir(r.origFset, dir, nil, 0)
+	tfnames := make([]string, 0, len(r.pkg.Files)+1)
 
 	var restoreMain func()
 	r.tmpFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
 	for fpath, file := range r.pkg.Files {
 		r.files = append(r.files, file)
-		tfname := filepath.Join(tdir, filepath.Base(fpath))
+		tfname := filepath.Join(r.tdir, filepath.Base(fpath))
 		f, err := os.Create(tfname)
 		if err != nil {
 			return err
-		}
-		if r.toRun && runStr != "main" {
-			if undo := delFunc(file, "main"); undo != nil {
-				restoreMain = undo
-			}
-			file.Name.Name = "main"
 		}
 		if err := rawPrinter.Fprint(f, r.fset, file); err != nil {
 			return err
@@ -129,36 +122,14 @@ func reduce(dir, runStr, match string, logOut io.Writer, bflags ...string) error
 		defer f.Close()
 		tfnames = append(tfnames, tfname)
 	}
-	if r.toRun && runStr != "main" {
-		mfname := filepath.Join(tdir, "goreduce_main.go")
-		mf, err := os.Create(mfname)
-		if err != nil {
-			return err
-		}
-		if err := mainTmpl.Execute(mf, runStr); err != nil {
-			return err
-		}
-		if err := mf.Close(); err != nil {
-			return err
-		}
-		tfnames = append(tfnames, mfname)
-	}
 	r.tconf.Importer = importer.Default()
 	r.tconf.Error = func(err error) {
 		if terr, ok := err.(types.Error); ok && terr.Soft {
 			// don't stop type-checking on soft errors
 			return
 		}
-		if !r.toRun {
-			return
-		}
-		panic("types.Check should not error here: " + err.Error())
+		//panic("types.Check should not error here: " + err.Error())
 	}
-	r.outBin = filepath.Join(tdir, "bin")
-	r.goArgs = []string{"build", "-o", r.outBin}
-	r.goArgs = append(r.goArgs, buildFlags...)
-	r.goArgs = append(r.goArgs, bflags...)
-	r.goArgs = append(r.goArgs, tfnames...)
 	// Check that the output matches before we apply any changes
 	if !fastTest {
 		if err := r.checkRun(); err != nil {
@@ -203,7 +174,7 @@ func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 }
 
 func (r *reducer) checkRun() error {
-	out := r.buildAndRun()
+	out := r.runCmd()
 	if out == nil {
 		return fmt.Errorf("expected an error to occur")
 	}
@@ -270,7 +241,7 @@ func (r *reducer) reduceLoop() (anyChanges bool) {
 	}
 	for {
 		// Update type info after the AST changes
-		r.tconf.Check(r.dir, r.fset, r.files, r.info)
+		r.tconf.Check(r.tdir, r.fset, r.files, r.info)
 		r.fillObjs()
 
 		r.didChange = false
@@ -295,7 +266,7 @@ func (r *reducer) fillObjs() {
 	}
 	r.useIdents = make(map[types.Object][]*ast.Ident, len(r.info.Uses)/2)
 	for id, obj := range r.info.Uses {
-		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkgName {
+		if pkg := obj.Pkg(); pkg == nil || pkg.Name() != r.pkg.Name {
 			// builtin or declared outside of our pkg
 			continue
 		}
@@ -339,22 +310,14 @@ func delFunc(file *ast.File, name string) (undo func()) {
 	return nil
 }
 
-func (r *reducer) buildAndRun() []byte {
-	cmd := exec.Command("go", r.goArgs...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
-			return out
-		}
-		panic("could not call go build: " + err.Error())
+func (r *reducer) runCmd() []byte {
+	var buf bytes.Buffer
+	runner := interp.Runner{
+		File:   r.shellProg,
+		Dir:    r.tdir,
+		Stdout: &buf,
+		Stderr: &buf,
 	}
-	if !r.toRun {
-		return nil
-	}
-	if out, err := exec.Command(r.outBin).CombinedOutput(); err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
-			return out
-		}
-		panic("could not call binary: " + err.Error())
-	}
-	return nil
+	runner.Run()
+	return buf.Bytes()
 }

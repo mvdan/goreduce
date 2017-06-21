@@ -1,6 +1,6 @@
-package crasher
+package main
 
-func Crasher() {
+func main() {
 	_, msg := 0, 0
 	panic(msg)
 }
