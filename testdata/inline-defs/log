@@ -1,0 +1,3 @@
+src.go:5: var inlined (1 try)
+src.go:4: AssignStmt removed (1 try)
+gave up after 0 final tries

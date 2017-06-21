@@ -228,7 +228,7 @@ func (r *reducer) declIdentValue(id *ast.Ident) ast.Expr {
 				return y.Values[i]
 			}
 		}
-	case *ast.AssignStmt: // Tok must be := (DEFINE)
+	case *ast.AssignStmt:
 		for i, name := range y.Lhs {
 			if name == id {
 				return y.Rhs[i]
@@ -256,13 +256,45 @@ func (r *reducer) removeDecl(id *ast.Ident) (undo func()) {
 		return r.removeSpec(x)
 	case *ast.AssignStmt:
 		if len(x.Lhs) != len(x.Rhs) {
-			break
+			return nil
 		}
 		if len(x.Lhs) == 1 {
 			return r.replaceStmts(x, nil)
 		}
+		oldAssgn := *x
+		for i, left := range x.Lhs {
+			if left == id {
+				x.Lhs = append(x.Lhs[:i], x.Lhs[i+1:]...)
+				x.Rhs = append(x.Rhs[:i], x.Rhs[i+1:]...)
+				break
+			}
+		}
+		r.fixAssignTok(x)
+		return func() {
+			*x = oldAssgn
+		}
 	}
 	panic("could not remove name declaration")
+}
+
+func (r *reducer) fixAssignTok(as *ast.AssignStmt) {
+	for _, left := range as.Lhs {
+		id, _ := left.(*ast.Ident)
+		if id == nil || id.Name == "_" { // a.b = x; _ = x
+			continue
+		}
+		if r.info.Defs[id] != nil { // a := x
+			as.Tok = token.DEFINE
+			return
+		}
+	}
+	as.Tok = token.ASSIGN
+}
+
+func (r *reducer) fixAssignTokParent(declIdent *ast.Ident) {
+	if as, _ := r.parents[declIdent].(*ast.AssignStmt); as != nil {
+		r.fixAssignTok(as)
+	}
 }
 
 func (r *reducer) removeSpec(spec ast.Spec) (undo func()) {
@@ -448,7 +480,6 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 	type redoVar struct {
 		id   *ast.Ident
 		name string
-		asgn *ast.AssignStmt
 	}
 	var vars []redoVar
 
@@ -484,15 +515,9 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 			}
 		case *types.Var:
 			declIdent := r.revDefs[x]
-			vars = append(vars, redoVar{declIdent, declIdent.Name, nil})
-			switch y := r.parents[declIdent].(type) {
-			case *ast.AssignStmt: // Tok must be := (DEFINE)
-				vars = append(vars, redoVar{declIdent, declIdent.Name, y})
-				if len(y.Lhs) == 1 { // TODO: this is sloppy
-					y.Tok = token.ASSIGN
-				}
-			}
+			vars = append(vars, redoVar{declIdent, declIdent.Name})
 			declIdent.Name = "_"
+			r.fixAssignTokParent(declIdent)
 			undos = append(undos, r.removeDecl(declIdent))
 		}
 	}
@@ -512,9 +537,7 @@ func (r *reducer) afterDelete(nodes ...ast.Node) {
 			}
 			for _, rvar := range vars {
 				rvar.id.Name = rvar.name
-				if rvar.asgn != nil {
-					rvar.asgn.Tok = token.DEFINE
-				}
+				r.fixAssignTokParent(rvar.id)
 			}
 		}
 	}
