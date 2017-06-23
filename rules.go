@@ -246,6 +246,11 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			}
 			bl.Value = strconv.Itoa(r)
 			return &bl
+		case token.STRING: // x.Op == token.ADD
+			a, _ := strconv.Unquote(bl1.Value)
+			b, _ := strconv.Unquote(bl2.Value)
+			bl.Value = strconv.Quote(a + b)
+			return &bl
 		}
 	}
 	return nil
