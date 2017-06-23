@@ -1,2 +1,2 @@
 src.go:4: a || b -> b (2 tries)
-gave up after 3 final tries
+gave up after 2 final tries

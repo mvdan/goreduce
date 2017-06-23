@@ -1,5 +1,5 @@
 package main
 
 func main() {
-	panic(3 + 0)
+	panic(1 + 2)
 }

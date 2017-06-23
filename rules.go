@@ -18,6 +18,19 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	if r.didChange {
 		return false
 	}
+	if r.expr != nil {
+		orig := v.(ast.Expr)
+		rsExpr := resolveExpr(v.(ast.Expr))
+		switch rsExpr {
+		case nil: // not possible
+		case orig: // same
+		default:
+			if r.changedExpr(rsExpr) {
+				r.logChange(orig, "resolved expression")
+				break
+			}
+		}
+	}
 	switch x := v.(type) {
 	case *ast.File:
 		r.file = x
@@ -152,10 +165,6 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			r.logChange(x, "a %v b -> b", x.Op)
 			break
 		}
-	case *ast.ParenExpr:
-		if r.changedExpr(x.X) {
-			r.logChange(x, "(a) -> a")
-		}
 	case *ast.IndexExpr:
 		r.afterDelete(x.Index)
 		if r.changedExpr(x.X) {
@@ -199,6 +208,41 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		}
 	}
 	return true
+}
+
+func resolveExpr(e ast.Expr) ast.Expr {
+	switch x := e.(type) {
+	case *ast.BasicLit:
+		return x
+	case *ast.ParenExpr:
+		return resolveExpr(x.X)
+	case *ast.BinaryExpr:
+		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
+		bl2, _ := resolveExpr(x.Y).(*ast.BasicLit)
+		if bl1 == nil || bl2 == nil {
+			return nil
+		}
+		if bl1.Kind != bl2.Kind {
+			// we might want to treat these at some point.
+			return nil
+		}
+		bl := *bl1
+		switch bl1.Kind {
+		case token.INT:
+			a, _ := strconv.Atoi(bl1.Value)
+			b, _ := strconv.Atoi(bl2.Value)
+			var r int
+			switch x.Op {
+			case token.ADD:
+				r = a + b
+			default:
+				return nil
+			}
+			bl.Value = strconv.Itoa(r)
+			return &bl
+		}
+	}
+	return nil
 }
 
 func (r *reducer) funcDetails(fun ast.Expr) (*ast.FuncType, *ast.BlockStmt) {
