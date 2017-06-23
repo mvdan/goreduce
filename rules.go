@@ -235,6 +235,12 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			switch x.Op {
 			case token.ADD:
 				r = a + b
+			case token.SUB:
+				r = a - b
+			case token.MUL:
+				r = a * b
+			case token.QUO:
+				r = a / b
 			default:
 				return nil
 			}
