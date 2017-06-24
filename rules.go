@@ -252,6 +252,21 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			bl.Value = strconv.Quote(a + b)
 			return &bl
 		}
+	case *ast.IndexExpr:
+		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
+		bl2, _ := resolveExpr(x.Index).(*ast.BasicLit)
+		if bl1 == nil || bl2 == nil {
+			return nil
+		}
+		bl := *bl1
+		switch bl1.Kind {
+		case token.STRING:
+			s, _ := strconv.Unquote(bl1.Value)
+			i, _ := strconv.Atoi(bl2.Value)
+			bl.Kind = token.CHAR
+			bl.Value = strconv.QuoteRune(rune(s[i]))
+			return &bl
+		}
 	}
 	return nil
 }
