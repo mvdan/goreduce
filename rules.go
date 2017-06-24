@@ -220,11 +220,11 @@ func resolveExpr(e ast.Expr) ast.Expr {
 		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
 		bl2, _ := resolveExpr(x.Y).(*ast.BasicLit)
 		if bl1 == nil || bl2 == nil {
-			return nil
+			break
 		}
 		if bl1.Kind != bl2.Kind {
 			// we might want to treat these at some point.
-			return nil
+			break
 		}
 		bl := *bl1
 		switch bl1.Kind {
@@ -256,7 +256,7 @@ func resolveExpr(e ast.Expr) ast.Expr {
 		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
 		bl2, _ := resolveExpr(x.Index).(*ast.BasicLit)
 		if bl1 == nil || bl2 == nil {
-			return nil
+			break
 		}
 		bl := *bl1
 		switch bl1.Kind {
@@ -265,6 +265,31 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			i, _ := strconv.Atoi(bl2.Value)
 			bl.Kind = token.CHAR
 			bl.Value = strconv.QuoteRune(rune(s[i]))
+			return &bl
+		}
+	case *ast.SliceExpr:
+		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
+		if bl1 == nil || x.Max != nil {
+			break
+		}
+		low, high := -1, -1
+		if bl, _ := resolveExpr(x.Low).(*ast.BasicLit); bl != nil {
+			low, _ = strconv.Atoi(bl.Value)
+		}
+		if bl, _ := resolveExpr(x.High).(*ast.BasicLit); bl != nil {
+			high, _ = strconv.Atoi(bl.Value)
+		}
+		bl := *bl1
+		switch bl1.Kind {
+		case token.STRING:
+			s, _ := strconv.Unquote(bl1.Value)
+			if high >= 0 {
+				s = s[:high]
+			}
+			if low >= 0 {
+				s = s[low:]
+			}
+			bl.Value = strconv.Quote(s)
 			return &bl
 		}
 	}
