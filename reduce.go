@@ -163,7 +163,7 @@ func reduce(dir, match string, logOut io.Writer, shellStr string) error {
 func (r *reducer) logChange(node ast.Node, format string, a ...interface{}) {
 	if *verbose {
 		pos := r.origFset.Position(node.Pos())
-		times := "1 try"
+		times := "first try"
 		if r.tries != 1 {
 			times = fmt.Sprintf("%d tries", r.tries)
 		}

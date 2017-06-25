@@ -1,2 +1,2 @@
-src.go:4: if a {...} else c -> c (1 try)
+src.go:4: if a {...} else c -> c (first try)
 gave up after 0 final tries

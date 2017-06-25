@@ -1,2 +1,2 @@
-src.go:4: a[b:] -> a (1 try)
+src.go:4: a[b:] -> a (first try)
 gave up after 1 final tries
