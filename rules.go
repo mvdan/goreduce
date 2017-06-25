@@ -216,12 +216,25 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	return true
 }
 
+// resolveExpr will try to resolve a constant expression, returning an
+// *ast.BasicLit or *ast.CompositeLit if it succeeds. If it did not, it
+// will return nil.
 func resolveExpr(e ast.Expr) ast.Expr {
 	switch x := e.(type) {
 	case *ast.BasicLit:
 		return x
 	case *ast.ParenExpr:
 		return resolveExpr(x.X)
+	case *ast.CompositeLit:
+		cl := *x
+		for i, expr := range cl.Elts {
+			rsExpr := resolveExpr(expr)
+			if rsExpr == nil {
+				return nil
+			}
+			cl.Elts[i] = rsExpr
+		}
+		return &cl
 	case *ast.BinaryExpr:
 		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
 		bl2, _ := resolveExpr(x.Y).(*ast.BasicLit)
@@ -259,19 +272,25 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			return &bl
 		}
 	case *ast.IndexExpr:
-		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
-		bl2, _ := resolveExpr(x.Index).(*ast.BasicLit)
-		if bl1 == nil || bl2 == nil {
+		bli, _ := resolveExpr(x.Index).(*ast.BasicLit)
+		if bli == nil {
 			break
 		}
-		bl := *bl1
-		switch bl1.Kind {
-		case token.STRING:
-			s, _ := strconv.Unquote(bl1.Value)
-			i, _ := strconv.Atoi(bl2.Value)
-			bl.Kind = token.CHAR
-			bl.Value = strconv.QuoteRune(rune(s[i]))
-			return &bl
+		i, _ := strconv.Atoi(bli.Value)
+		switch x := resolveExpr(x.X).(type) {
+		case *ast.BasicLit:
+			bl := *x
+			switch x.Kind {
+			case token.STRING:
+				s, _ := strconv.Unquote(x.Value)
+				bl.Kind = token.CHAR
+				bl.Value = strconv.QuoteRune(rune(s[i]))
+				return &bl
+			}
+		case *ast.CompositeLit:
+			if i < len(x.Elts) {
+				return x.Elts[i]
+			}
 		}
 	case *ast.SliceExpr:
 		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
