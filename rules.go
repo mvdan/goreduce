@@ -34,6 +34,12 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	switch x := v.(type) {
 	case *ast.File:
 		r.file = x
+		// put the original src for the file in the tried map
+		if err := rawPrinter.Fprint(r.dstBuf, r.fset, r.file); err != nil {
+			return false
+		}
+		newSrc := r.dstBuf.String()
+		r.tried[newSrc] = true
 	case *ast.ValueSpec:
 		for _, name := range x.Names {
 			if ast.IsExported(name.Name) {

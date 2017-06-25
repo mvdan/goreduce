@@ -188,7 +188,6 @@ func (r *reducer) okChangeNoUndo() bool {
 	if r.didChange {
 		return false
 	}
-	r.tries++
 	r.dstBuf.Reset()
 	if err := rawPrinter.Fprint(r.dstBuf, r.fset, r.file); err != nil {
 		return false
@@ -197,6 +196,7 @@ func (r *reducer) okChangeNoUndo() bool {
 	if r.tried[newSrc] {
 		return false
 	}
+	r.tries++
 	r.tried[newSrc] = true
 	f := r.tmpFiles[r.file]
 	if err := f.Truncate(0); err != nil {
