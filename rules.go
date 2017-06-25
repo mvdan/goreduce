@@ -355,7 +355,7 @@ func (r *reducer) resolveExpr(e ast.Expr) ast.Expr {
 		}
 	case *ast.CallExpr:
 		id, _ := x.Fun.(*ast.Ident)
-		if id == nil {
+		if id == nil || len(x.Args) == 0 {
 			break
 		}
 		bt, _ := r.info.Uses[id].(*types.Builtin)
@@ -379,6 +379,25 @@ func (r *reducer) resolveExpr(e ast.Expr) ast.Expr {
 			cl := *y
 			cl.Elts = append(cl.Elts, args[1:]...)
 			return &cl
+		case "len":
+			var l int
+			switch y := args[0].(type) {
+			case *ast.BasicLit:
+				if y.Kind != token.STRING {
+					return nil
+				}
+				s, _ := strconv.Unquote(y.Value)
+				l = len(s)
+			case *ast.CompositeLit:
+				l = len(y.Elts)
+			default:
+				return nil
+			}
+			return &ast.BasicLit{
+				ValuePos: x.Pos(),
+				Kind:     token.INT,
+				Value:    strconv.Itoa(l),
+			}
 		}
 	}
 	return nil

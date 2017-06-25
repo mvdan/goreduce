@@ -1,5 +1,5 @@
 package main
 
 func main() {
-	panic(4)
+	panic(len("foo"))
 }
