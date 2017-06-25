@@ -20,7 +20,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	}
 	if r.expr != nil {
 		orig := v.(ast.Expr)
-		rsExpr := resolveExpr(v.(ast.Expr))
+		rsExpr := r.resolveExpr(v.(ast.Expr))
 		switch rsExpr {
 		case nil: // not possible
 		case orig: // same
@@ -215,16 +215,16 @@ func (r *reducer) reduceNode(v interface{}) bool {
 // resolveExpr will try to resolve a constant expression, returning an
 // *ast.BasicLit or *ast.CompositeLit if it succeeds. If it did not, it
 // will return nil.
-func resolveExpr(e ast.Expr) ast.Expr {
+func (r *reducer) resolveExpr(e ast.Expr) ast.Expr {
 	switch x := e.(type) {
 	case *ast.BasicLit:
 		return x
 	case *ast.ParenExpr:
-		return resolveExpr(x.X)
+		return r.resolveExpr(x.X)
 	case *ast.CompositeLit:
 		cl := *x
 		for i, expr := range cl.Elts {
-			rsExpr := resolveExpr(expr)
+			rsExpr := r.resolveExpr(expr)
 			if rsExpr == nil {
 				return nil
 			}
@@ -232,7 +232,7 @@ func resolveExpr(e ast.Expr) ast.Expr {
 		}
 		return &cl
 	case *ast.UnaryExpr:
-		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
+		bl1, _ := r.resolveExpr(x.X).(*ast.BasicLit)
 		if bl1 == nil {
 			break
 		}
@@ -253,8 +253,8 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			return &bl
 		}
 	case *ast.BinaryExpr:
-		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
-		bl2, _ := resolveExpr(x.Y).(*ast.BasicLit)
+		bl1, _ := r.resolveExpr(x.X).(*ast.BasicLit)
+		bl2, _ := r.resolveExpr(x.Y).(*ast.BasicLit)
 		if bl1 == nil || bl2 == nil {
 			break
 		}
@@ -289,12 +289,12 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			return &bl
 		}
 	case *ast.IndexExpr:
-		bli, _ := resolveExpr(x.Index).(*ast.BasicLit)
+		bli, _ := r.resolveExpr(x.Index).(*ast.BasicLit)
 		if bli == nil {
 			break
 		}
 		i, _ := strconv.Atoi(bli.Value)
-		switch x := resolveExpr(x.X).(type) {
+		switch x := r.resolveExpr(x.X).(type) {
 		case *ast.BasicLit:
 			bl := *x // bl.Kind == token.STRING
 			if bl.Kind != token.STRING {
@@ -316,13 +316,13 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			break
 		}
 		low, high := -1, -1
-		if bl, _ := resolveExpr(x.Low).(*ast.BasicLit); bl != nil {
+		if bl, _ := r.resolveExpr(x.Low).(*ast.BasicLit); bl != nil {
 			low, _ = strconv.Atoi(bl.Value)
 		}
-		if bl, _ := resolveExpr(x.High).(*ast.BasicLit); bl != nil {
+		if bl, _ := r.resolveExpr(x.High).(*ast.BasicLit); bl != nil {
 			high, _ = strconv.Atoi(bl.Value)
 		}
-		switch x := resolveExpr(x.X).(type) {
+		switch x := r.resolveExpr(x.X).(type) {
 		case *ast.BasicLit:
 			bl := *x // bl.Kind == token.STRING
 			if bl.Kind != token.STRING {
@@ -351,6 +351,33 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			if low >= 0 {
 				cl.Elts = cl.Elts[low:]
 			}
+			return &cl
+		}
+	case *ast.CallExpr:
+		id, _ := x.Fun.(*ast.Ident)
+		if id == nil {
+			break
+		}
+		bt, _ := r.info.Uses[id].(*types.Builtin)
+		if bt == nil {
+			break
+		}
+		args := make([]ast.Expr, len(x.Args))
+		for i, expr := range x.Args {
+			rsExpr := r.resolveExpr(expr)
+			if rsExpr == nil {
+				return nil
+			}
+			args[i] = rsExpr
+		}
+		switch bt.Name() {
+		case "append":
+			y, _ := args[0].(*ast.CompositeLit)
+			if y == nil {
+				break
+			}
+			cl := *y
+			cl.Elts = append(cl.Elts, args[1:]...)
 			return &cl
 		}
 	}
