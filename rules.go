@@ -279,15 +279,15 @@ func resolveExpr(e ast.Expr) ast.Expr {
 		i, _ := strconv.Atoi(bli.Value)
 		switch x := resolveExpr(x.X).(type) {
 		case *ast.BasicLit:
-			bl := *x
-			switch x.Kind {
-			case token.STRING:
-				s, _ := strconv.Unquote(x.Value)
-				if i < len(s) {
-					bl.Kind = token.CHAR
-					bl.Value = strconv.QuoteRune(rune(s[i]))
-					return &bl
-				}
+			bl := *x // bl.Kind == token.STRING
+			if bl.Kind != token.STRING {
+				break
+			}
+			s, _ := strconv.Unquote(x.Value)
+			if i < len(s) {
+				bl.Kind = token.CHAR
+				bl.Value = strconv.QuoteRune(rune(s[i]))
+				return &bl
 			}
 		case *ast.CompositeLit:
 			if i < len(x.Elts) {
@@ -307,22 +307,22 @@ func resolveExpr(e ast.Expr) ast.Expr {
 		}
 		switch x := resolveExpr(x.X).(type) {
 		case *ast.BasicLit:
-			bl := *x
-			switch x.Kind {
-			case token.STRING:
-				s, _ := strconv.Unquote(x.Value)
-				if high > len(s) || low > len(s) {
-					break // invalid expr
-				}
-				if high >= 0 {
-					s = s[:high]
-				}
-				if low >= 0 {
-					s = s[low:]
-				}
-				bl.Value = strconv.Quote(s)
-				return &bl
+			bl := *x // bl.Kind == token.STRING
+			if bl.Kind != token.STRING {
+				break
 			}
+			s, _ := strconv.Unquote(x.Value)
+			if high > len(s) || low > len(s) {
+				break // invalid expr
+			}
+			if high >= 0 {
+				s = s[:high]
+			}
+			if low >= 0 {
+				s = s[low:]
+			}
+			bl.Value = strconv.Quote(s)
+			return &bl
 		case *ast.CompositeLit:
 			cl := *x
 			if high > len(cl.Elts) || low > len(cl.Elts) {
