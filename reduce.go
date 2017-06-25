@@ -104,7 +104,6 @@ func reduce(dir, match string, logOut io.Writer, shellStr string) error {
 	}
 	r.origFset = token.NewFileSet()
 	parser.ParseDir(r.origFset, dir, nil, 0)
-	tfnames := make([]string, 0, len(r.pkg.Files)+1)
 
 	var restoreMain func()
 	r.tmpFiles = make(map[*ast.File]*os.File, len(r.pkg.Files))
@@ -120,7 +119,6 @@ func reduce(dir, match string, logOut io.Writer, shellStr string) error {
 		}
 		r.tmpFiles[file] = f
 		defer f.Close()
-		tfnames = append(tfnames, tfname)
 	}
 	r.tconf.Importer = importer.Default()
 	r.tconf.Error = func(err error) {
@@ -286,28 +284,6 @@ func (r *reducer) fillParents() {
 		stack = append(stack, node)
 		return true
 	})
-}
-
-func findFunc(file *ast.File, name string) *ast.FuncDecl {
-	for _, decl := range file.Decls {
-		fd, _ := decl.(*ast.FuncDecl)
-		if fd != nil && fd.Name.Name == name {
-			return fd
-		}
-	}
-	return nil
-}
-
-func delFunc(file *ast.File, name string) (undo func()) {
-	oldDecls := file.Decls
-	for i, decl := range file.Decls {
-		fd, _ := decl.(*ast.FuncDecl)
-		if fd != nil && fd.Name.Name == name {
-			file.Decls = append(file.Decls[:i], file.Decls[i+1:]...)
-			return func() { file.Decls = oldDecls }
-		}
-	}
-	return nil
 }
 
 func (r *reducer) runCmd() []byte {
