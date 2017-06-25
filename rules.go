@@ -181,10 +181,6 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if r.changedExpr(x.X) {
 			r.logChange(x, "*a -> a")
 		}
-	case *ast.UnaryExpr:
-		if r.changedExpr(x.X) {
-			r.logChange(x, "%va -> a", x.Op)
-		}
 	case *ast.GoStmt:
 		if r.changedStmt(&ast.ExprStmt{X: x.Call}) {
 			r.logChange(x, "go a() -> a()")
@@ -235,6 +231,27 @@ func resolveExpr(e ast.Expr) ast.Expr {
 			cl.Elts[i] = rsExpr
 		}
 		return &cl
+	case *ast.UnaryExpr:
+		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
+		if bl1 == nil {
+			break
+		}
+		bl := *bl1
+		switch bl1.Kind {
+		case token.INT:
+			a, _ := strconv.Atoi(bl1.Value)
+			var r int
+			switch x.Op {
+			case token.ADD:
+				r = a
+			case token.SUB:
+				r = -a
+			default:
+				return nil
+			}
+			bl.Value = strconv.Itoa(r)
+			return &bl
+		}
 	case *ast.BinaryExpr:
 		bl1, _ := resolveExpr(x.X).(*ast.BasicLit)
 		bl2, _ := resolveExpr(x.Y).(*ast.BasicLit)
