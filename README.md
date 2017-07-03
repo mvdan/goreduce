@@ -40,6 +40,39 @@ For more usage information, see `goreduce -h`.
 
 ### Rules
 
-These are changes made to the AST - single steps towards reducing a
-program. They go from removing a statement to inling a variable and
-anything in between. See `rules.go`.
+#### Removing
+
+|                 | Before              | After         |
+| --------------- | ------------------- | ------------- |
+| statement       | `a; b`              | `a` or `b`    |
+| index           | `a[1]`              | `a`           |
+| slice           | `a[:2]`             | `a` or `a[:]` |
+| binary part     | `a + b`, `a && b`   | `a` or `b`    |
+| unary op        | `-a`, `!a`          | `a`           |
+| star            | `*a`                | `a`           |
+| parentheses     | `(a)`               | `a`           |
+| if/else         | `if a { b } else c` | `b` or `c`    |
+| defer           | `defer f()`         | `f()`         |
+| go              | `go f()`            | `f()`         |
+| basic value     | `123, "foo"`        | `0, ""`       |
+| composite value | `T{a, b}`           | `T{}`         |
+
+#### Inlining
+
+|                 | Before              | After         |
+| --------------- | ------------------- | ------------- |
+| const           | `const c = 0; f(c)` | `f(0)`        |
+| var             | `v := false; f(v)`  | `f(false)`    |
+| case            | `case x: a`         | `a`           |
+| block           | `{ a }`             | `a`           |
+| simple call     | `f()`               | `{ body }`    |
+
+#### Resolving
+
+|                 | Before              | After         |
+| --------------- | ------------------- | ------------- |
+| integer op      | `2 * 3`             | `6`           |
+| string op       | `"foo" + "bar"`     | `"foobar"`    |
+| slice           | `"foo"[1:]`         | `"oo"`        |
+| index           | `"foo"[0]`          | `'f'`         |
+| builtin         | `len("foo")`        | `3`           |
