@@ -10,7 +10,7 @@ error or any output (such as a panic) matching a regular expression.
 ### Example
 
 ```
-func Crasher() {
+func main() {
         a := []int{1, 2, 3}
         if true {
                 a = append(a, 4)
@@ -20,18 +20,16 @@ func Crasher() {
 }
 ```
 
-	goreduce -match 'index out of range' -run='Crasher()' .
+	goreduce -match 'index out of range' .
 
 ```
-func Crasher() {
+func main() {
         a := []int{}
         println(a[0])
 }
 ```
 
-And for compiler crashes:
-
-	goreduce -match 'internal compiler error' . -gcflags '-c=2'
+For more usage information, see `goreduce -h`.
 
 ### Design
 
