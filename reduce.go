@@ -289,11 +289,11 @@ func (r *reducer) fillParents() {
 func (r *reducer) runCmd() []byte {
 	var buf bytes.Buffer
 	runner := interp.Runner{
-		Node:   r.shellProg,
 		Dir:    r.tdir,
 		Stdout: &buf,
 		Stderr: &buf,
 	}
-	runner.Run()
+	runner.Reset()
+	runner.Run(r.shellProg)
 	return buf.Bytes()
 }
