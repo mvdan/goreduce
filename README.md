@@ -5,7 +5,7 @@
 Reduce a program to its simplest form as long as it produces a compiler
 error or any output (such as a panic) matching a regular expression.
 
-	go get -u github.com/mvdan/goreduce
+	go get -u mvdan.cc/goreduce
 
 ### Example
 
