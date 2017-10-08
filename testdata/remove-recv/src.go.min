@@ -1,0 +1,12 @@
+package main
+
+type foo int
+
+func crash() {
+
+	panic(0)
+}
+func main() {
+	panic(0)
+
+}

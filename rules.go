@@ -208,6 +208,37 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		if r.changedStmt(fbody) {
 			r.logChange(x, "inlined call")
 		}
+	case *ast.FuncDecl:
+		if x.Recv == nil || len(x.Recv.List) != 1 {
+			break
+		}
+		if field := x.Recv.List[0]; len(field.Names) > 0 {
+			obj := r.info.Defs[field.Names[0]]
+			if len(r.useIdents[obj]) > 0 {
+				break
+			}
+		}
+		obj := r.info.Defs[x.Name]
+		var undos []func()
+		var deleted []ast.Node
+		for _, use := range r.useIdents[obj] {
+			sel := r.parents[use].(*ast.SelectorExpr)
+			deleted = append(deleted, sel.X)
+			selRef := r.exprRef(sel)
+			*selRef = use
+			undos = append(undos, func() { *selRef = sel })
+		}
+		r.afterDelete(deleted...)
+		oldRecv := x.Recv
+		x.Recv = nil
+		if r.okChange() {
+			r.logChange(x, "removed func decl receiver")
+		} else {
+			x.Recv = oldRecv
+			for _, undo := range undos {
+				undo()
+			}
+		}
 	}
 	return true
 }

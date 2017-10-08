@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -296,4 +297,19 @@ func (r *reducer) runCmd() []byte {
 	runner.Reset()
 	runner.Run(r.shellProg)
 	return buf.Bytes()
+}
+
+func (r *reducer) exprRef(expr ast.Expr) *ast.Expr {
+	parent := r.parents[expr]
+	v := reflect.ValueOf(parent)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	for i := 0; i < v.NumField(); i++ {
+		fld := v.Field(i)
+		if fld.Interface() == expr {
+			return fld.Addr().Interface().(*ast.Expr)
+		}
+	}
+	panic("expression not found in parent")
 }

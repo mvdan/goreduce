@@ -1,0 +1,3 @@
+src.go:5: removed func decl receiver (first try)
+src.go:11: inlined call (first try)
+gave up after 0 final tries
