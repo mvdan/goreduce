@@ -560,10 +560,12 @@ func (r *reducer) removeStmt(list *[]ast.Stmt) {
 				continue
 			}
 		}
-		r.afterDelete(stmt)
 		copy(l, orig[:i])
 		copy(l[i:], orig[i+1:])
 		*list = l
+		// After modifying the list, as we might remove more
+		// statements from the same list.
+		r.afterDelete(stmt)
 		if r.okChange() {
 			if i+i < len(orig) {
 				r.mergeLines(stmt.Pos(), orig[i+1].End())

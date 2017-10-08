@@ -1,5 +1,4 @@
 src.go:5: block inlined (2 tries)
 src.go:9: ExprStmt removed (first try)
-src.go:4: AssignStmt removed (first try)
 src.go:7: var inlined (first try)
 gave up after 0 final tries
