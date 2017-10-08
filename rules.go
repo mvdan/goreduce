@@ -18,16 +18,15 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	if r.didChange {
 		return false
 	}
-	if r.expr != nil {
-		orig := v.(ast.Expr)
+	if expr, ok := v.(ast.Expr); ok {
 		rsExpr := r.resolveExpr(v.(ast.Expr))
 		switch rsExpr {
 		case nil: // not possible
-		case orig: // same
+		case expr: // same
 		default:
-			if r.changedExpr(rsExpr) {
-				r.logChange(orig, "resolved expression")
-				break
+			if r.changedExpr(expr, rsExpr) {
+				r.logChange(expr, "resolved expression")
+				return true
 			}
 		}
 	}
@@ -132,7 +131,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		r.afterDelete(x)
-		if r.changedExpr(val) {
+		if r.changedExpr(x, val) {
 			if isVar {
 				r.logChange(x, "var inlined")
 			} else {
@@ -162,23 +161,23 @@ func (r *reducer) reduceNode(v interface{}) bool {
 		x.Elts = orig
 	case *ast.BinaryExpr:
 		r.afterDelete(x.Y)
-		if r.changedExpr(x.X) {
+		if r.changedExpr(x, x.X) {
 			r.logChange(x, "a %v b -> a", x.Op)
 			break
 		}
 		r.afterDelete(x.X)
-		if r.changedExpr(x.Y) {
+		if r.changedExpr(x, x.Y) {
 			r.logChange(x, "a %v b -> b", x.Op)
 			break
 		}
 	case *ast.IndexExpr:
 		r.afterDelete(x.Index)
-		if r.changedExpr(x.X) {
+		if r.changedExpr(x, x.X) {
 			r.logChange(x, "a[b] -> a")
 			break
 		}
 	case *ast.StarExpr:
-		if r.changedExpr(x.X) {
+		if r.changedExpr(x, x.X) {
 			r.logChange(x, "*a -> a")
 		}
 	case *ast.GoStmt:
@@ -819,6 +818,11 @@ func (r *reducer) changedStmt(stmt ast.Stmt) bool {
 	orig := *r.stmt
 	if *r.stmt = stmt; r.okChange() {
 		setPos(stmt, orig.Pos())
+		for child, parent := range r.parents {
+			if parent == orig {
+				r.parents[child] = stmt
+			}
+		}
 		r.parents[stmt] = r.parents[orig]
 		return true
 	}
@@ -826,16 +830,16 @@ func (r *reducer) changedStmt(stmt ast.Stmt) bool {
 	return false
 }
 
-func (r *reducer) changedExpr(expr ast.Expr) bool {
-	orig := *r.expr
-	if *r.expr = expr; r.okChange() {
+func (r *reducer) changedExpr(orig, expr ast.Expr) bool {
+	ref := r.exprRef(orig)
+	if *ref = expr; r.okChange() {
 		setPos(expr, orig.Pos())
 		r.mergeLines(orig.Pos(), expr.Pos())
 		r.mergeLines(expr.End(), orig.End())
 		r.parents[expr] = r.parents[orig]
 		return true
 	}
-	*r.expr = orig
+	*ref = orig
 	return false
 }
 
@@ -916,7 +920,7 @@ func (r *reducer) reduceLit(l *ast.BasicLit) {
 
 func (r *reducer) reduceSlice(sl *ast.SliceExpr) {
 	r.afterDelete(sl.Low, sl.High, sl.Max)
-	if r.changedExpr(sl.X) {
+	if r.changedExpr(sl, sl.X) {
 		r.logChange(sl, "a[b:] -> a")
 		return
 	}

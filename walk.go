@@ -14,14 +14,12 @@ import "go/ast"
 type walkItem struct {
 	v    interface{}
 	stmt *ast.Stmt
-	expr *ast.Expr
 }
 
 type walker struct {
 	fn    func(v interface{}) bool
 	queue []walkItem
 	stmt  *ast.Stmt
-	expr  *ast.Expr
 	file  *ast.File
 }
 
@@ -32,7 +30,7 @@ func (w *walker) walk(v interface{}, fn func(interface{}) bool) {
 	for len(w.queue) > 0 {
 		wi := w.queue[0]
 		w.queue = w.queue[1:]
-		w.stmt, w.expr = wi.stmt, wi.expr
+		w.stmt = wi.stmt
 		w.walkSingle(wi.v)
 	}
 }
@@ -44,8 +42,8 @@ func (w *walker) walkIdentList(list []*ast.Ident) {
 }
 
 func (w *walker) walkExprList(list []ast.Expr) {
-	for i := range list {
-		w.walkExpr(&list[i])
+	for _, x := range list {
+		w.walkOther(x)
 	}
 }
 
@@ -63,10 +61,6 @@ func (w *walker) walkDeclList(list []ast.Decl) {
 
 func (w *walker) walkStmt(stmt *ast.Stmt) {
 	w.queue = append(w.queue, walkItem{v: *stmt, stmt: stmt})
-}
-
-func (w *walker) walkExpr(expr *ast.Expr) {
-	w.queue = append(w.queue, walkItem{v: *expr, expr: expr})
 }
 
 func (w *walker) walkOther(v interface{}) {
@@ -87,7 +81,7 @@ func (w *walker) walkSingle(v interface{}) {
 	// Fields
 	case *ast.Field:
 		w.walkIdentList(x.Names)
-		w.walkExpr(&x.Type)
+		w.walkOther(x.Type)
 		if x.Tag != nil {
 			w.walkOther(x.Tag)
 		}
@@ -100,7 +94,7 @@ func (w *walker) walkSingle(v interface{}) {
 	// Expressions
 	case *ast.Ellipsis:
 		if x.Elt != nil {
-			w.walkExpr(&x.Elt)
+			w.walkOther(x.Elt)
 		}
 
 	case *ast.FuncLit:
@@ -109,63 +103,63 @@ func (w *walker) walkSingle(v interface{}) {
 
 	case *ast.CompositeLit:
 		if x.Type != nil {
-			w.walkExpr(&x.Type)
+			w.walkOther(x.Type)
 		}
 		w.walkExprList(x.Elts)
 
 	case *ast.ParenExpr:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 
 	case *ast.SelectorExpr:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 		w.walkOther(x.Sel)
 
 	case *ast.IndexExpr:
-		w.walkExpr(&x.X)
-		w.walkExpr(&x.Index)
+		w.walkOther(x.X)
+		w.walkOther(x.Index)
 
 	case *ast.SliceExpr:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 		if x.Low != nil {
-			w.walkExpr(&x.Low)
+			w.walkOther(x.Low)
 		}
 		if x.High != nil {
-			w.walkExpr(&x.High)
+			w.walkOther(x.High)
 		}
 		if x.Max != nil {
-			w.walkExpr(&x.Max)
+			w.walkOther(x.Max)
 		}
 
 	case *ast.TypeAssertExpr:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 		if x.Type != nil {
-			w.walkExpr(&x.Type)
+			w.walkOther(x.Type)
 		}
 
 	case *ast.CallExpr:
-		w.walkExpr(&x.Fun)
+		w.walkOther(x.Fun)
 		w.walkExprList(x.Args)
 
 	case *ast.StarExpr:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 
 	case *ast.UnaryExpr:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 
 	case *ast.BinaryExpr:
-		w.walkExpr(&x.X)
-		w.walkExpr(&x.Y)
+		w.walkOther(x.X)
+		w.walkOther(x.Y)
 
 	case *ast.KeyValueExpr:
-		w.walkExpr(&x.Key)
-		w.walkExpr(&x.Value)
+		w.walkOther(x.Key)
+		w.walkOther(x.Value)
 
 	// Types
 	case *ast.ArrayType:
 		if x.Len != nil {
-			w.walkExpr(&x.Len)
+			w.walkOther(x.Len)
 		}
-		w.walkExpr(&x.Elt)
+		w.walkOther(x.Elt)
 
 	case *ast.StructType:
 		w.walkOther(x.Fields)
@@ -182,11 +176,11 @@ func (w *walker) walkSingle(v interface{}) {
 		w.walkOther(x.Methods)
 
 	case *ast.MapType:
-		w.walkExpr(&x.Key)
-		w.walkExpr(&x.Value)
+		w.walkOther(x.Key)
+		w.walkOther(x.Value)
 
 	case *ast.ChanType:
-		w.walkExpr(&x.Value)
+		w.walkOther(x.Value)
 
 	// Statements
 	case *ast.DeclStmt:
@@ -197,14 +191,14 @@ func (w *walker) walkSingle(v interface{}) {
 		w.walkStmt(&x.Stmt)
 
 	case *ast.ExprStmt:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 
 	case *ast.SendStmt:
-		w.walkExpr(&x.Chan)
-		w.walkExpr(&x.Value)
+		w.walkOther(x.Chan)
+		w.walkOther(x.Value)
 
 	case *ast.IncDecStmt:
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 
 	case *ast.AssignStmt:
 		w.walkExprList(x.Lhs)
@@ -231,7 +225,7 @@ func (w *walker) walkSingle(v interface{}) {
 		if x.Init != nil {
 			w.walkStmt(&x.Init)
 		}
-		w.walkExpr(&x.Cond)
+		w.walkOther(x.Cond)
 		w.walkOther(x.Body)
 		if x.Else != nil {
 			w.walkStmt(&x.Else)
@@ -271,7 +265,7 @@ func (w *walker) walkSingle(v interface{}) {
 			w.walkStmt(&x.Init)
 		}
 		if x.Cond != nil {
-			w.walkExpr(&x.Cond)
+			w.walkOther(x.Cond)
 		}
 		if x.Post != nil {
 			w.walkStmt(&x.Post)
@@ -280,12 +274,12 @@ func (w *walker) walkSingle(v interface{}) {
 
 	case *ast.RangeStmt:
 		if x.Key != nil {
-			w.walkExpr(&x.Key)
+			w.walkOther(x.Key)
 		}
 		if x.Value != nil {
-			w.walkExpr(&x.Value)
+			w.walkOther(x.Value)
 		}
-		w.walkExpr(&x.X)
+		w.walkOther(x.X)
 		w.walkOther(x.Body)
 
 	// Declarations
@@ -298,13 +292,13 @@ func (w *walker) walkSingle(v interface{}) {
 	case *ast.ValueSpec:
 		w.walkIdentList(x.Names)
 		if x.Type != nil {
-			w.walkExpr(&x.Type)
+			w.walkOther(x.Type)
 		}
 		w.walkExprList(x.Values)
 
 	case *ast.TypeSpec:
 		w.walkOther(x.Name)
-		w.walkExpr(&x.Type)
+		w.walkOther(x.Type)
 
 	case *ast.GenDecl:
 		for _, s := range x.Specs {

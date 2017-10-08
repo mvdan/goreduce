@@ -307,8 +307,20 @@ func (r *reducer) exprRef(expr ast.Expr) *ast.Expr {
 	}
 	for i := 0; i < v.NumField(); i++ {
 		fld := v.Field(i)
-		if fld.Interface() == expr {
-			return fld.Addr().Interface().(*ast.Expr)
+		switch fld.Type().Kind() {
+		case reflect.Slice:
+			for i := 0; i < fld.Len(); i++ {
+				ifld := fld.Index(i)
+				if ifld.Interface() == expr {
+					ptr, _ := ifld.Addr().Interface().(*ast.Expr)
+					return ptr
+				}
+			}
+		case reflect.Interface, reflect.Ptr:
+			if fld.Interface() == expr {
+				ptr, _ := fld.Addr().Interface().(*ast.Expr)
+				return ptr
+			}
 		}
 	}
 	panic("expression not found in parent")
