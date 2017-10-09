@@ -88,7 +88,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 	case *ast.IfStmt:
 		if len(x.Body.List) > 0 {
 			r.afterDelete(x.Init, x.Cond, x.Else)
-			if r.changedStmt(x.Body) {
+			if r.changedStmt(x, x.Body) {
 				r.logChange(x, "if a { b } -> b")
 				break
 			}
@@ -99,7 +99,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 				break
 			}
 			r.afterDelete(x.Init, x.Cond, x.Body)
-			if r.changedStmt(x.Else) {
+			if r.changedStmt(x, x.Else) {
 				r.logChange(x, "if a {...} else c -> c")
 				break
 			}
@@ -181,11 +181,11 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			r.logChange(x, "*a -> a")
 		}
 	case *ast.GoStmt:
-		if r.changedStmt(&ast.ExprStmt{X: x.Call}) {
+		if r.changedStmt(x, &ast.ExprStmt{X: x.Call}) {
 			r.logChange(x, "go a() -> a()")
 		}
 	case *ast.DeferStmt:
-		if r.changedStmt(&ast.ExprStmt{X: x.Call}) {
+		if r.changedStmt(x, &ast.ExprStmt{X: x.Call}) {
 			r.logChange(x, "defer a() -> a()")
 		}
 	case *ast.ExprStmt:
@@ -204,7 +204,7 @@ func (r *reducer) reduceNode(v interface{}) bool {
 			break
 		}
 		r.afterDelete(x)
-		if r.changedStmt(fbody) {
+		if r.changedStmt(x, fbody) {
 			r.logChange(x, "inlined call")
 		}
 	case *ast.FuncDecl:
@@ -807,16 +807,16 @@ func (r *reducer) unusedAfterDelete(nodes ...ast.Node) (objs []types.Object) {
 	return
 }
 
-func (r *reducer) changedStmt(stmt ast.Stmt) bool {
+func (r *reducer) changedStmt(orig, stmt ast.Stmt) bool {
+	ref := r.stmtRef(orig)
 	if bl, _ := stmt.(*ast.BlockStmt); bl != nil {
 		undo := r.adaptBlockNames(bl)
-		if r.replacedStmts(*r.stmt, bl.List) {
+		if r.replacedStmts(*ref, bl.List) {
 			return true
 		}
 		undo()
 	}
-	orig := *r.stmt
-	if *r.stmt = stmt; r.okChange() {
+	if *ref = stmt; r.okChange() {
 		setPos(stmt, orig.Pos())
 		for child, parent := range r.parents {
 			if parent == orig {
@@ -826,7 +826,7 @@ func (r *reducer) changedStmt(stmt ast.Stmt) bool {
 		r.parents[stmt] = r.parents[orig]
 		return true
 	}
-	*r.stmt = orig
+	*ref = orig
 	return false
 }
 

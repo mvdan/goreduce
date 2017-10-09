@@ -11,15 +11,9 @@ package main
 
 import "go/ast"
 
-type walkItem struct {
-	v    interface{}
-	stmt *ast.Stmt
-}
-
 type walker struct {
 	fn    func(v interface{}) bool
-	queue []walkItem
-	stmt  *ast.Stmt
+	queue []interface{}
 	file  *ast.File
 }
 
@@ -28,10 +22,9 @@ func (w *walker) walk(v interface{}, fn func(interface{}) bool) {
 	w.fn = fn
 	w.walkOther(v)
 	for len(w.queue) > 0 {
-		wi := w.queue[0]
+		v := w.queue[0]
 		w.queue = w.queue[1:]
-		w.stmt = wi.stmt
-		w.walkSingle(wi.v)
+		w.walkSingle(v)
 	}
 }
 
@@ -49,7 +42,7 @@ func (w *walker) walkExprList(list []ast.Expr) {
 
 func (w *walker) walkStmtList(list *[]ast.Stmt) {
 	if len(*list) > 0 {
-		w.queue = append(w.queue, walkItem{v: list})
+		w.walkOther(list)
 	}
 }
 
@@ -59,12 +52,8 @@ func (w *walker) walkDeclList(list []ast.Decl) {
 	}
 }
 
-func (w *walker) walkStmt(stmt *ast.Stmt) {
-	w.queue = append(w.queue, walkItem{v: *stmt, stmt: stmt})
-}
-
 func (w *walker) walkOther(v interface{}) {
-	w.queue = append(w.queue, walkItem{v: v})
+	w.queue = append(w.queue, v)
 }
 
 func (w *walker) walkSingle(v interface{}) {
@@ -76,7 +65,7 @@ func (w *walker) walkSingle(v interface{}) {
 	case *[]ast.Stmt:
 		l := *x
 		for i := range l {
-			w.walkStmt(&l[i])
+			w.walkOther(l[i])
 		}
 	// Fields
 	case *ast.Field:
@@ -188,7 +177,7 @@ func (w *walker) walkSingle(v interface{}) {
 
 	case *ast.LabeledStmt:
 		w.walkOther(x.Label)
-		w.walkStmt(&x.Stmt)
+		w.walkOther(x.Stmt)
 
 	case *ast.ExprStmt:
 		w.walkOther(x.X)
@@ -223,12 +212,12 @@ func (w *walker) walkSingle(v interface{}) {
 
 	case *ast.IfStmt:
 		if x.Init != nil {
-			w.walkStmt(&x.Init)
+			w.walkOther(x.Init)
 		}
 		w.walkOther(x.Cond)
 		w.walkOther(x.Body)
 		if x.Else != nil {
-			w.walkStmt(&x.Else)
+			w.walkOther(x.Else)
 		}
 
 	case *ast.CaseClause:
@@ -237,7 +226,7 @@ func (w *walker) walkSingle(v interface{}) {
 
 	case *ast.SwitchStmt:
 		if x.Init != nil {
-			w.walkStmt(&x.Init)
+			w.walkOther(x.Init)
 		}
 		if x.Tag != nil {
 			w.walkOther(x.Tag)
@@ -246,14 +235,14 @@ func (w *walker) walkSingle(v interface{}) {
 
 	case *ast.TypeSwitchStmt:
 		if x.Init != nil {
-			w.walkStmt(&x.Init)
+			w.walkOther(x.Init)
 		}
-		w.walkStmt(&x.Assign)
+		w.walkOther(x.Assign)
 		w.walkOther(x.Body)
 
 	case *ast.CommClause:
 		if x.Comm != nil {
-			w.walkStmt(&x.Comm)
+			w.walkOther(x.Comm)
 		}
 		w.walkStmtList(&x.Body)
 
@@ -262,13 +251,13 @@ func (w *walker) walkSingle(v interface{}) {
 
 	case *ast.ForStmt:
 		if x.Init != nil {
-			w.walkStmt(&x.Init)
+			w.walkOther(x.Init)
 		}
 		if x.Cond != nil {
 			w.walkOther(x.Cond)
 		}
 		if x.Post != nil {
-			w.walkStmt(&x.Post)
+			w.walkOther(x.Post)
 		}
 		w.walkOther(x.Body)
 

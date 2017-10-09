@@ -301,10 +301,7 @@ func (r *reducer) runCmd() []byte {
 
 func (r *reducer) exprRef(expr ast.Expr) *ast.Expr {
 	parent := r.parents[expr]
-	v := reflect.ValueOf(parent)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
+	v := reflect.ValueOf(parent).Elem()
 	for i := 0; i < v.NumField(); i++ {
 		fld := v.Field(i)
 		switch fld.Type().Kind() {
@@ -316,12 +313,36 @@ func (r *reducer) exprRef(expr ast.Expr) *ast.Expr {
 					return ptr
 				}
 			}
-		case reflect.Interface, reflect.Ptr:
+		case reflect.Interface:
 			if fld.Interface() == expr {
 				ptr, _ := fld.Addr().Interface().(*ast.Expr)
 				return ptr
 			}
 		}
 	}
-	panic("expression not found in parent")
+	return nil
+}
+
+func (r *reducer) stmtRef(stmt ast.Stmt) *ast.Stmt {
+	parent := r.parents[stmt]
+	v := reflect.ValueOf(parent).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		fld := v.Field(i)
+		switch fld.Type().Kind() {
+		case reflect.Slice:
+			for i := 0; i < fld.Len(); i++ {
+				ifld := fld.Index(i)
+				if ifld.Interface() == stmt {
+					ptr, _ := ifld.Addr().Interface().(*ast.Stmt)
+					return ptr
+				}
+			}
+		case reflect.Interface:
+			if fld.Interface() == stmt {
+				ptr, _ := fld.Addr().Interface().(*ast.Stmt)
+				return ptr
+			}
+		}
+	}
+	return nil
 }
