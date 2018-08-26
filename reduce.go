@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -289,13 +290,11 @@ func (r *reducer) fillParents() {
 
 func (r *reducer) runCmd() []byte {
 	var buf bytes.Buffer
-	runner := interp.Runner{
-		Dir:    r.tdir,
-		Stdout: &buf,
-		Stderr: &buf,
+	runner, err := interp.New(interp.Dir(r.tdir), interp.StdIO(nil, &buf, &buf))
+	if err != nil {
+		panic(err)
 	}
-	runner.Reset()
-	runner.Run(r.shellProg)
+	runner.Run(context.TODO(), r.shellProg)
 	return buf.Bytes()
 }
 
