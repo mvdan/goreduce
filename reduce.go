@@ -21,8 +21,8 @@ import (
 	"regexp"
 	"strings"
 
-	"mvdan.cc/sh/interp"
-	"mvdan.cc/sh/syntax"
+	"mvdan.cc/sh/v3/interp"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 var (
