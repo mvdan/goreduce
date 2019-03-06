@@ -78,6 +78,12 @@ func reduce(dir, match string, logOut io.Writer, shellStr string) error {
 	if r.tdir, err = ioutil.TempDir("", "goreduce"); err != nil {
 		return err
 	}
+	if err := ioutil.WriteFile(
+		filepath.Join(r.tdir, "go.mod"),
+		[]byte("module tmp"), 0666,
+	); err != nil {
+		return err
+	}
 	defer os.RemoveAll(r.tdir)
 	if r.matchRe, err = regexp.Compile(match); err != nil {
 		return err
