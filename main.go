@@ -46,10 +46,10 @@ To catch a build error/crash with custom build flags:
 Note that you may also call a script or any other program.
 `)
 	}
-	flag.Parse()
 }
 
 func main() {
+	flag.Parse()
 	args := flag.Args()
 	if len(args) < 1 || *matchStr == "" {
 		flag.Usage()
