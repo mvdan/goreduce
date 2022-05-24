@@ -41,7 +41,7 @@ To catch a run-time error/crash entering main:
 
 To catch a build error/crash with custom build flags:
 
-  goreduce -match 'internal compiler error' . 'go build -gcflags "-c=2"'
+  goreduce -match 'internal compiler error' -run 'go build -gcflags "-c=2"' .
 
 Note that you may also call a script or any other program.
 `)
@@ -51,7 +51,7 @@ Note that you may also call a script or any other program.
 func main() {
 	flag.Parse()
 	args := flag.Args()
-	if len(args) < 1 || *matchStr == "" {
+	if len(args) != 1 || *matchStr == "" {
 		flag.Usage()
 		os.Exit(2)
 	}
