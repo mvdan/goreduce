@@ -1,11 +1,13 @@
 # goreduce
 
-[![Build Status](https://travis-ci.org/mvdan/goreduce.svg?branch=master)](https://travis-ci.org/mvdan/goreduce)
-
 Reduce a program to its simplest form as long as it produces a compiler
 error or any output (such as a panic) matching a regular expression.
 
 	go get -u mvdan.cc/goreduce
+
+**Note that this project isn't being actively developed right now.**
+If you are interested in continuing the work, feel free to fork the repository,
+or email me to discuss transferring the entire repository over.
 
 ### Example
 
